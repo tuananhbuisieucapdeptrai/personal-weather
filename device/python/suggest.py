@@ -1,4 +1,11 @@
-"""Suggestion engine: optional, mode-aware free fixes.  Owner: Tuan Anh (T2.1; T2.2 next).
+"""Suggestion engine (T2.1) and follow-up + fix experience (T2.2).  Owner: Tuan Anh.
+
+T2.2 summary (spec C7; details above class FixExperience):
+  after "Do it": wait 5 min (30 s in the demo, labelled ACCELERATED) -> check the clothing
+  (camera / dashboard / not visible / contradicted) -> ask "how do you feel now?" ->
+  vote updates the personal offset (prospective record) and, unless the camera contradicts
+  the action, the Beta(1, 1) fix experience: OK = helped, still uncomfortable = didn't.
+  No answer = unknown, nothing updated. "Not possible" never starts a follow-up.
 
 Spec section 2 + C6. One SuggestionEngine per profile.
 
@@ -205,6 +212,148 @@ class ResponsePicker:
         return answer, [{"face": "check"}, {"beep": "chirp"}]
 
 
+# ======================================================================================
+# T2.2: follow-up and fix experience (spec C7)
+# ======================================================================================
+FOLLOW_UP_WAIT_S = 5 * 60          # "a few minutes"
+DEMO_WAIT_S = 30                   # demo only: shown as ACCELERATED
+FEEDBACK_TIMEOUT_S = 5 * 60        # no answer -> unknown, no update
+
+# What the camera/dashboard says about whether the accepted action happened.
+CONFIRMED_CAMERA = "confirmed_camera"
+CONFIRMED_DASHBOARD = "confirmed_dashboard"    # manual clothing: the person confirmed it
+NOT_VISIBLE = "not_visible"                    # clothing unknown: rely on the "Do it"
+CONTRADICTED = "contradicted"                  # camera still sees the old clothing
+
+
+class FixExperience:
+    """Beta(1, 1) per fix for one person: OK after the action = helped, else didn't."""
+
+    def __init__(self, counts: dict | None = None):
+        self.counts = {k: list(v) for k, v in (counts or {}).items()}   # fix -> [helped, didnt]
+
+    def update(self, fix: str, helped: bool) -> None:
+        c = self.counts.setdefault(fix, [0, 0])
+        c[0 if helped else 1] += 1
+
+    def estimate(self, fix: str) -> dict:
+        s, f = self.counts.get(fix, [0, 0])
+        a, b = 1 + s, 1 + f
+        mean = a / (a + b)
+        sd = (a * b / ((a + b) ** 2 * (a + b + 1))) ** 0.5
+        level = "high" if sd > 0.15 else "medium" if sd > 0.08 else "lower"
+        return {"fix": fix, "helped": s, "didnt": f, "n": s + f, "mean": round(mean, 3),
+                "sd": round(sd, 3), "uncertainty": level, "prior": "Beta(1, 1)"}
+
+    def describe(self, fix: str, who: str) -> str:
+        e = self.estimate(fix)
+        what = {"add_layer": "Adding a layer", "remove_layer": "Removing a layer"}.get(fix, fix)
+        if e["n"] == 0:
+            return f"{what}, for {who}: no follow-ups yet"
+        return (f"{what}, for {who}: {e['helped']} helped, {e['didnt']} didn't "
+                f"→ about {round(e['mean'] * 100)}%, {e['uncertainty']} uncertainty")
+
+    def to_dict(self) -> dict:
+        return {k: list(v) for k, v in self.counts.items()}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "FixExperience":
+        return cls(d)
+
+
+class FeedbackPicker:
+    """Knob while asking 'how do you feel now?': -1 cold, 0 OK, +1 warm. Bump-safe."""
+
+    def __init__(self):
+        self.pos, self.turned, self.previewed = 0, False, False
+
+    def on_turn(self, pos: int) -> list[dict]:
+        self.pos, self.turned = pos, True
+        return [{"face": "feedback", "pos": pos}]
+
+    def on_press(self) -> tuple[int | None, list[dict]]:
+        if not self.turned and not self.previewed:
+            self.previewed = True
+            return None, [{"face": "feedback", "pos": 0}]
+        vote, self.pos = self.pos, 0
+        return vote, [{"face": "check"}, {"beep": "chirp"}]
+
+
+class FollowUp:
+    """One follow-up after a "Do it". States: waiting -> asking -> done.
+
+        fu = FollowUp(response_record, clothing_before, now, accelerated=True)
+        msgs = fu.tick(now, clothing, clothing_source)     # every loop; asks when due
+        fu.picker.on_turn / on_press                        # while state == "asking"
+        outcome = fu.complete(now, vote, t, rh, clothing, model, experience)
+    """
+
+    def __init__(self, response: dict, clothing_before: str, now: float, accelerated: bool = False):
+        if not response.get("follow_up"):
+            raise ValueError("follow-up only after 'do_it'")
+        self.fix = response["fix"]
+        self.mode = response["mode"]
+        self.clothing_before = clothing_before
+        self.started_at = now
+        self.accelerated = accelerated
+        self.wait_s = DEMO_WAIT_S if accelerated else FOLLOW_UP_WAIT_S
+        self.state = "waiting"
+        self.action_check: str | None = None
+        self.asked_at: float | None = None
+        self.picker = FeedbackPicker()
+        self.outcome: dict | None = None
+
+    @property
+    def labels(self) -> list[str]:
+        return ["ACCELERATED"] if self.accelerated else []
+
+    def due_in(self, now: float) -> float:
+        return max(0.0, self.started_at + self.wait_s - now)
+
+    def check_action(self, clothing: str, source: str) -> str:
+        if clothing == FIXES[self.fix]["to"]:
+            return CONFIRMED_DASHBOARD if source == "manual" else CONFIRMED_CAMERA
+        if clothing == FIXES[self.fix]["from"] and source == "camera":
+            return CONTRADICTED
+        return NOT_VISIBLE      # unknown clothing, or a manual setting not updated yet
+
+    def tick(self, now: float, clothing: str, source: str) -> list[dict]:
+        """Advance the follow-up. Returns sketch messages (the question) when it starts asking."""
+        if self.state == "waiting" and now >= self.started_at + self.wait_s:
+            self.action_check = self.check_action(clothing, source)
+            self.state, self.asked_at = "asking", now
+            return [{"face": "feedback", "pos": 0}, {"beep": "chime"}]
+        if self.state == "asking" and now - self.asked_at > FEEDBACK_TIMEOUT_S:
+            self._finish(now, {"result": "unknown", "vote": None,
+                               "note": "no follow-up response: unknown, not failure"})
+        return []
+
+    def complete(self, now: float, vote: int, t: float, rh: float, clothing: str,
+                 model: comfort.PersonalModel, experience: FixExperience) -> dict:
+        """Apply the follow-up vote: personal offset always, fix experience if counted."""
+        if self.state != "asking":
+            raise RuntimeError(f"cannot complete in state {self.state}")
+        comfort_record = model.observe(vote, comfort.baseline_pmv(t, rh, clothing))
+        helped = vote == comfort.OK
+        counted = self.action_check != CONTRADICTED
+        if counted:
+            experience.update(self.fix, helped)
+        return self._finish(now, {
+            "result": ("helped" if helped else "didnt_help") if counted else "not_counted",
+            "vote": vote, "comfort_record": comfort_record,
+            "experience": experience.estimate(self.fix),
+            "note": ("camera saw the old clothing: comfort vote used, fix experience not updated"
+                     if not counted else "association only: neither camera nor vote proves causation"),
+        })
+
+    def _finish(self, now: float, extra: dict) -> dict:
+        self.state = "done"
+        self.outcome = {"event": "follow_up", "at": now, "fix": self.fix, "mode": self.mode,
+                        "started_at": self.started_at, "action_check": self.action_check,
+                        "labels": self.labels, **extra}
+        return self.outcome
+
+
 # ---- Self-test -----------------------------------------------------------------------
 def _selftest():
     import contracts
@@ -299,5 +448,88 @@ def _selftest():
           "unresolved, band_with_fix, knob picker")
 
 
+def _selftest_followup():
+    import contracts
+    m0 = comfort.PersonalModel
+
+    def do_it_response():
+        e = SuggestionEngine()
+        e.offer(0, e.evaluate(0, 21.5, 40, "none", m0(), "heating")["offer"])
+        return e.respond(10, DO_IT)
+
+    # Spec wording example: 4 helped, 1 didn't -> about 71%, high uncertainty.
+    x = FixExperience({"add_layer": [4, 1]})
+    assert x.describe("add_layer", "TA") == "Adding a layer, for TA: 4 helped, 1 didn't → about 71%, high uncertainty"
+    assert FixExperience().describe("add_layer", "TA").endswith("no follow-ups yet")
+    assert FixExperience({"add_layer": [30, 5]}).estimate("add_layer")["uncertainty"] == "lower"
+
+    # Only after "Do it".
+    e = SuggestionEngine()
+    e.offer(0, e.evaluate(0, 21.5, 40, "none", m0(), "heating")["offer"])
+    try:
+        FollowUp(e.respond(5, NOT_POSSIBLE), "none", 5)
+        raise AssertionError("follow-up allowed after not_possible")
+    except ValueError:
+        pass
+
+    # Happy path (demo): accelerated wait, camera confirms, OK -> helped; offset logged.
+    model, exp = m0(), FixExperience()
+    fu = FollowUp(do_it_response(), "none", 10, accelerated=True)
+    assert fu.labels == ["ACCELERATED"] and fu.tick(20, "none", "camera") == []   # still waiting
+    ask = fu.tick(10 + DEMO_WAIT_S, "outer", "camera")
+    assert ask == [{"face": "feedback", "pos": 0}, {"beep": "chime"}] and fu.state == "asking"
+    assert fu.action_check == CONFIRMED_CAMERA
+    assert fu.picker.on_press()[0] is None                       # bump: preview only
+    fu.picker.on_turn(0)
+    vote, msgs = fu.picker.on_press()
+    out = fu.complete(50, vote, 21.5, 40, "outer", model, exp)
+    assert out["result"] == "helped" and exp.counts == {"add_layer": [1, 0]}
+    assert out["comfort_record"]["vote"] == 0 and model.n == 1  # offset updated + prospective record
+    for m in ask + msgs + fu.picker.on_turn(-1):
+        contracts.check_to_sketch(m)
+
+    # Still cold after the layer -> didn't help.
+    exp2 = FixExperience()
+    fu = FollowUp(do_it_response(), "none", 0)
+    assert fu.wait_s == FOLLOW_UP_WAIT_S and fu.labels == []
+    fu.tick(FOLLOW_UP_WAIT_S, "outer", "manual")
+    assert fu.action_check == CONFIRMED_DASHBOARD
+    assert fu.complete(FOLLOW_UP_WAIT_S + 5, -1, 19.0, 40, "outer", m0(), exp2)["result"] == "didnt_help"
+    assert exp2.counts == {"add_layer": [0, 1]}
+
+    # Camera still sees no layer: comfort vote used, experience NOT updated.
+    exp3, model3 = FixExperience(), m0()
+    fu = FollowUp(do_it_response(), "none", 0, accelerated=True)
+    fu.tick(DEMO_WAIT_S, "none", "camera")
+    out = fu.complete(DEMO_WAIT_S + 5, 0, 21.5, 40, "none", model3, exp3)
+    assert fu.action_check == CONTRADICTED and out["result"] == "not_counted"
+    assert exp3.counts == {} and model3.n == 1
+
+    # Clothing not visible (camera off / uncertain): the accepted "Do it" + response counts.
+    exp4 = FixExperience()
+    fu = FollowUp(do_it_response(), "none", 0, accelerated=True)
+    fu.tick(DEMO_WAIT_S, "uncertain", "camera")
+    assert fu.action_check == NOT_VISIBLE
+    assert fu.complete(DEMO_WAIT_S + 5, 0, 21.5, 40, "uncertain", m0(), exp4)["result"] == "helped"
+
+    # No answer -> unknown, nothing updated.
+    exp5, model5 = FixExperience(), m0()
+    fu = FollowUp(do_it_response(), "none", 0, accelerated=True)
+    fu.tick(DEMO_WAIT_S, "outer", "camera")
+    fu.tick(DEMO_WAIT_S + FEEDBACK_TIMEOUT_S + 1, "outer", "camera")
+    assert fu.state == "done" and fu.outcome["result"] == "unknown" and fu.outcome["vote"] is None
+    assert exp5.counts == {} and model5.n == 0
+    try:
+        fu.complete(9999, 0, 21.5, 40, "outer", model5, exp5)
+        raise AssertionError("completed twice")
+    except RuntimeError:
+        pass
+
+    assert FixExperience.from_dict(exp.to_dict()).counts == exp.counts
+    print("follow-up OK: Do-it only, accelerated label, camera/dashboard/contradicted/not-visible checks, "
+          "helped/didn't/unknown, Beta wording")
+
+
 if __name__ == "__main__":
     _selftest()
+    _selftest_followup()
