@@ -91,3 +91,36 @@ Run `bash tools/kickoff/api_smoke.sh pw-desk.local:8000` only against production
 - Decide quiet-office sound acceptance. Team-chat setup is skipped at Minh's request.
 
 Do not tick end-to-end checklist boxes solely because a diagnostic test passed. Pushes of this work represent a verified kickoff baseline, not a completed product.
+
+---
+
+## Tuan Anh's reply (2026-11-14): kickoff leftovers
+
+Done on Tuan Anh's laptop. **Not yet run against the board**, which was not reachable from this laptop at the time:
+
+| Item | Done | Evidence |
+|---|---|---|
+| Hub on laptop | `hub/server.py`: `POST /summary` → 204, receipt time, stale after 2 min, `DELETE` for test entries | Minh's exact curl → 204 over the LAN address; invalid pid → 400; stale rule tested with a fake clock |
+| Hub address on the board | `summary.py --set-hub` writes `state/hub_url` (gitignored). The env var still wins if present. | Resolution order + unreachable-hub error tested |
+| Board → hub test command | `python3 summary.py --test` sends the synthetic `p-a001` (present=false) through the real sender | PASS against the laptop hub |
+| Smoothing | `sensing.py`: EMA (τ 10 s), raw values kept, stale after 5 s, restart after a gap | Self-test |
+
+**Do together (~5 min), on the same network:**
+1. Laptop: `python3 hub/server.py`. Note the laptop IP with `ipconfig getifaddr en0`.
+2. Board (SSH, in `device/python` of the deployed app):
+   - `python3 summary.py --set-hub http://<laptop-ip>:8080`
+   - `python3 summary.py --test`
+   - Expect `PASS ... 204`, and a matching log line on the hub.
+3. Laptop: `curl -X DELETE http://localhost:8080/summaries/p-a001`. The entry is synthetic and is not LIVE evidence.
+4. If that passes, tick **Ports / hostname** in `interfaces.md`.
+
+Sections 4–7 of this handoff are integration work: T2.4, T3.1–T3.3 and the joint acceptance. They are not kickoff.
+
+**Result 2026-11-14 12:08:** board → hub test **PASS**.
+- Minh's exact `curl` ran on the board. The hub at 192.168.0.7:8080 replied `HTTP/1.0 204` and logged the summary with source 192.168.0.85.
+- The synthetic `p-a001` entry was deleted afterwards.
+- `pw-desk.local:8000` also answered from Tuan Anh's laptop.
+- **Ports / hostname** is ticked.
+- Still open:
+  - `python3 summary.py --set-hub http://192.168.0.7:8080` on the board, once the app has the latest code.
+  - The board's shell prompt shows `personalweather`, so confirm `hostname` says `pw-desk` after a reboot.

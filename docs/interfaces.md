@@ -11,10 +11,10 @@ Draft defaults written by Tuan Anh. Minh confirms or changes each one, then tick
 - [x] **Bridge mapping** (section 0.2.1). Minh checks it with the round-trip test in `docs/kickoff-guide.md` at M1.1.
 - [x] **Knob**: the sketch clamps the position to −1/0/+1 and resets it to 0 after every press; the click sound is played locally by the sketch.
 - [x] **Response mapping**: +1 = DO, 0 = LATER, −1 = NO. Every interaction starts at 0, so an accidental press means "Not now", which carries no penalty.
-- [ ] **Smoothing** happens in Python. The sketch sends raw values once per second.
+- [x] **Smoothing** happens in Python. The sketch sends raw values once per second. *Raw 1 Hz with decimals verified on the board (Minh); smoothing + 5 s staleness implemented and self-tested in `device/python/sensing.py` (Tuan Anh).*
 - [ ] **Shutter**: after ~3 s of dark frames, vision stops capturing and reports `"shutter"`. Capture starts again only when someone presses "camera on" on the dashboard.
 - [x] **Dashboard clothing override** (`clothing` in `/control`). This is the fallback if the 14:00 gate fails. *Built and tested by Tuan Anh: `api.py` passes all 11 checks in `api_smoke.sh`. Needs only Minh's OK on the rules in 0.2.3.*
-- [ ] **Ports / hostname**: device API on `pw-desk.local:8000`, hub on laptop port `8080`.
+- [x] **Ports / hostname**: device API on `pw-desk.local:8000`, hub on laptop port `8080`. *Verified 2026-11-14: `pw-desk.local:8000` answers from Tuan Anh's laptop (HTTP 200); board (192.168.0.85) → hub (192.168.0.7:8080) `POST /summary` = **204**, logged by the hub with the board as source. Open: the board's shell prompt still shows `personalweather`, so check `hostname` after a reboot (M4.2).*
 - **Team chat channel**: skipped at Minh's request (2026-11-14).
 
 ---
@@ -177,8 +177,9 @@ Linux decides every sound except the click. The sketch never beeps by itself.
 
 **Network**
 - The laptop runs a **Wi-Fi hotspot**. If macOS Internet Sharing is awkward at the venue, use a phone hotspot. The SSID and password are not committed.
-- The UNO Q joins with hostname **`pw-desk`** (`pw-desk.local`). Write its fixed IP here as a fallback: ______________
-- The hub address for the device comes from the env var `PW_HUB_URL`. Prefer the laptop's `.local` name, which survives IP changes: `http://<laptop-name>.local:8080`. Use the IP if the board can't resolve the name. Test with `bash tools/net/board_setup.sh --check-hub <laptop-name>.local`.
+- The UNO Q joins with hostname **`pw-desk`** (`pw-desk.local`). Observed IP: **192.168.0.85** (DHCP, not reserved; recheck after every network change)
+- The hub runs on Tuan Anh's laptop: `python3 hub/server.py` (binds `0.0.0.0:8080`).
+- **The board finds the hub through the file `device/python/state/hub_url`**, set with `python3 summary.py --set-hub http://<laptop-ip>:8080` on the board. It is gitignored and survives app restarts. The env var `PW_HUB_URL` wins if App Lab passes it, but an SSH `export` does not reach the running App Lab app (Minh's finding), so the file is the reliable route. `python3 summary.py` prints which URL is in effect and where it came from.
 - The laptop's macOS firewall is off (checked Friday), so it won't block the board.
 
 **Blocked for more than 30 minutes → say so immediately** in the team channel. Don't wait for the next sync.
