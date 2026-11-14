@@ -1,5 +1,6 @@
 """Room hub (laptop).  Owner: Tuan Anh (T4.2; kickoff version).
 
+    GET    /                 dashboard (hub/static/index.html; ?device=http://<board>:8000)
     POST   /summary          C8 summary from a device -> 204 (400 if it breaks the contract)
     GET    /summaries        every known person: summary + receipt age + stale/effective presence
     DELETE /summaries/<pid>  remove one entry (e.g. a synthetic test summary)
@@ -29,6 +30,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import contracts  # noqa: E402  (shared contract checks)
 
 STALE_AFTER_S = 120
+DASHBOARD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "index.html")
 
 
 class SummaryStore:
@@ -89,7 +91,19 @@ def make_handler(store: SummaryStore):
 
         def do_GET(self):
             path = self.path.split("?")[0]
-            if path == "/ping":
+            if path in ("/", "/dashboard"):
+                try:
+                    with open(DASHBOARD, "rb") as f:
+                        body = f.read()
+                except OSError:
+                    return self._send(404, {"error": "dashboard missing"})
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+            elif path == "/ping":
                 self._send(200, {"ok": True, "hub": "personal-weather"})
             elif path == "/summaries":
                 self._send(200, {"stale_after_s": STALE_AFTER_S, "people": store.view()})
