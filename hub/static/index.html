@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personal Weather</title>
+<!-- T4.1 dashboard (Tuan Anh): one device, "my desk". Served by hub/server.py at /.
+     Polls GET /state every second, sends POST /control. No external resources.
+     Device: ?device=http://pw-desk.local:8000 (default) or http://127.0.0.1:8000 (--mock). -->
+<style>
+:root {
+  --bg: #f4f6f9; --panel: #fff; --ink: #18202e; --muted: #667085; --line: #e3e7ee;
+  --accent: #2563eb; --accent-soft: #e8efff; --on: #fff;
+  --cold: #1d63c9; --cold-soft: #e2edfd; --ok: #157f3c; --ok-soft: #e4f5e9;
+  --warm: #b45309; --warm-soft: #fdf0df; --bad: #b42318; --bad-soft: #fde8e6;
+  --demo: #6d28d9; --demo-soft: #f0e9fe; --chip: #eef1f6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #10141b; --panel: #19202a; --ink: #e8ecf3; --muted: #9ba6b9; --line: #2a3240;
+    --accent: #6e9dff; --accent-soft: #1d2a45; --on: #0b1020;
+    --cold: #82b2ff; --cold-soft: #162944; --ok: #5fd08a; --ok-soft: #16301f;
+    --warm: #f3a85c; --warm-soft: #3a2914; --bad: #ff8c7d; --bad-soft: #3c1a17;
+    --demo: #b9a0ff; --demo-soft: #271f3d; --chip: #242b37;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 20px 16px 40px; display: grid; gap: 14px; }
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.top h1 { margin: 0 auto 0 0; font-size: 20px; }
+.chip { padding: 3px 10px; border-radius: 999px; background: var(--chip); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.chip.demo { background: var(--demo-soft); color: var(--demo); }
+.chip.live { background: var(--ok-soft); color: var(--ok); }
+.chip.fast { background: var(--warm-soft); color: var(--warm); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+.muted { color: var(--muted); }
+
+.now { display: flex; gap: 18px; align-items: center; }
+.icon { flex: none; width: 96px; height: 96px; border-radius: 24px; display: grid; place-items: center; font-size: 56px; background: var(--chip); }
+.icon.c-1 { background: var(--cold-soft); } .icon.c0 { background: var(--ok-soft); } .icon.c1 { background: var(--warm-soft); }
+.who { font-size: 15px; color: var(--muted); }
+.feel { font-size: 30px; font-weight: 700; line-height: 1.15; }
+.feel.c-1 { color: var(--cold); } .feel.c0 { color: var(--ok); } .feel.c1 { color: var(--warm); }
+.meta { margin-top: 4px; color: var(--muted); }
+.meta b { color: var(--ink); }
+
+.action { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--accent-soft);
+  display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.action.bad { background: var(--bad-soft); color: var(--bad); }
+.action b { font-size: 17px; }
+.keys { display: flex; gap: 6px; margin-left: auto; }
+.keys span { padding: 3px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-size: 13px; font-weight: 700; color: var(--ink); }
+
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.stat .n { font-size: 26px; font-weight: 700; }
+.stat .l { font-size: 14px; color: var(--muted); }
+
+.ctl { display: grid; grid-template-columns: 90px 1fr; gap: 10px 12px; align-items: center; }
+.ctl > span { font-size: 14px; color: var(--muted); }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; width: fit-content; }
+.seg button { font: inherit; font-size: 14px; padding: 7px 14px; border: 0; border-right: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--accent); color: var(--on); }
+
+.privacy { font-size: 14px; }
+details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+pre { margin: 8px 0 0; padding: 8px 10px; background: var(--chip); border-radius: 8px; overflow-x: auto;
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+.small { font-size: 13px; }
+button.link { font: inherit; font-size: 13px; background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; color: var(--bad); cursor: pointer; }
+#banner { display: none; } #banner.show { display: block; }
+
+@media (max-width: 520px) {
+  .icon { width: 72px; height: 72px; font-size: 42px; border-radius: 18px; }
+  .feel { font-size: 24px; }
+  .keys { margin-left: 0; }
+  .ctl { grid-template-columns: 1fr; gap: 4px; }
+  .ctl > span:not(:first-child) { margin-top: 6px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Personal Weather</h1>
+    <span id="chips"><span class="chip">connecting…</span></span>
+  </div>
+  <div id="banner" class="card action bad"></div>
+
+  <div class="card" id="now"><span class="muted">Waiting for the device…</span></div>
+
+  <div class="stats">
+    <div class="card stat" id="learn"></div>
+    <div class="card stat" id="fix"></div>
+  </div>
+
+  <div class="card ctl" id="controls"></div>
+
+  <div class="card privacy" id="privacy"></div>
+
+  <details class="card" id="techbox"><summary>Technical details</summary><div id="tech"></div></details>
+</div>
+
+<script>
+"use strict";
+const DEVICE = (new URLSearchParams(location.search).get("device") || "http://pw-desk.local:8000").replace(/\/$/, "");
+const FEEL = { "-1": ["❄️", "A bit cold"], "0": ["🙂", "Comfortable"], "1": ["☀️", "A bit warm"] };
+const FIX = { add_layer: "Put on a layer", remove_layer: "Take off a layer" };
+const SAVES = { replaces_heat_request: "instead of more heating", replaces_cooling_request: "instead of more cooling" };
+const LABELS = { LIVE: ["live", "Live"], "MOCK INPUT": ["demo", "Demo data"], ACCELERATED: ["fast", "Sped up"],
+  SIMULATED: ["demo", "Simulated"], RECORDED: ["fast", "Recorded"] };
+
+function h(tag, attrs, ...kids) {           // never uses innerHTML with data
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (v != null && v !== false) el.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) if (c != null && c !== false) el.append(c instanceof Node ? c : String(c));
+  return el;
+}
+const $ = (id) => document.getElementById(id);
+const f1 = (x) => (x == null ? "–" : Number(x).toFixed(1));
+const range = (b) => (b ? `${f1(b[0])}–${f1(b[1])} °C` : "–");
+
+async function control(body) {
+  try {
+    const r = await fetch(DEVICE + "/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    render(j);
+  } catch (e) { banner("Couldn't change that: " + e.message); }
+}
+function banner(t) { $("banner").textContent = t; $("banner").classList.toggle("show", !!t); }
+
+function chips(s) {
+  const out = s.labels.map((l) => { const [c, t] = LABELS[l] || ["", l]; return h("span", { class: "chip " + c, title: l }, t); });
+  const cam = s.vision.camera;
+  out.push(h("span", { class: "chip" + (cam === "on" ? "" : " bad") }, cam === "on" ? "📷 on" : cam === "shutter" ? "📷 covered" : "📷 off"));
+  $("chips").replaceChildren(...out);
+}
+
+function now(s) {
+  const p = s.people[s.control.profile], e = p.estimate, d = p.decision, fu = p.follow_up;
+  if (!s.presence.present) {
+    $("now").replaceChildren(h("div", { class: "now" }, h("div", { class: "icon" }, "🪑"),
+      h("div", {}, h("div", { class: "who" }, p.display), h("div", { class: "feel" }, "Away"),
+        h("div", { class: "meta" }, h("b", {}, `${f1(s.env.t)} °C`)))));
+    return;
+  }
+  if (!e) { $("now").replaceChildren(h("span", { class: "muted" }, "Waiting for a temperature reading…")); return; }
+  const [icon, feel] = FEEL[e.personal_class];
+  let action = null;
+  if (fu && fu.state === "waiting") {
+    action = h("div", { class: "action" }, h("b", {}, `Checking in ${Math.ceil(fu.due_in_s)} s`), h("span", { class: "muted" }, `after “${FIX[fu.fix].toLowerCase()}”`));
+  } else if (fu && fu.state === "asking") {
+    action = h("div", { class: "action" }, h("b", {}, "Did it help?"),
+      h("div", { class: "keys" }, h("span", {}, "◀ cold"), h("span", {}, "OK"), h("span", {}, "warm ▶")));
+  } else if (p.suggestion_on_screen) {
+    const o = p.suggestion_on_screen;
+    action = h("div", { class: "action" }, h("b", {}, FIX[o.fix]), SAVES[o.energy_role] ? h("span", { class: "muted" }, SAVES[o.energy_role]) : null,
+      h("div", { class: "keys" }, h("span", {}, "◀ NO"), h("span", {}, "LATER"), h("span", {}, "DO ▶")));
+  } else if (d && d.unresolved) {
+    action = h("div", { class: "action bad" }, h("b", {}, "Uncomfortable, no free fix"));
+  }
+  $("now").replaceChildren(
+    h("div", { class: "now" }, h("div", { class: `icon c${e.personal_class}` }, icon),
+      h("div", {}, h("div", { class: "who" }, p.display), h("div", { class: `feel c${e.personal_class}` }, feel),
+        h("div", { class: "meta" }, h("b", {}, `${f1(s.env.t)} °C`), ` · ${Math.round(s.env.rh)} % · comfort ${range(e.band)}`))),
+    action);
+}
+
+function stats(s) {
+  const p = s.people[s.control.profile], r = p.evaluation;
+  $("learn").replaceChildren(
+    h("div", { class: "n" }, r.n ? `${Math.round(r.personal_accuracy * r.n)} / ${r.n}` : "–"),
+    h("div", { class: "l" }, r.n ? `answers predicted right (formula alone: ${Math.round(r.baseline_accuracy * r.n)})` : "no answers yet: turn the knob"));
+  const x = Object.entries(p.experience).find(([, v]) => v.n > 0);
+  $("fix").replaceChildren(
+    h("div", { class: "n" }, x ? `${x[1].helped} / ${x[1].n}` : "–"),
+    h("div", { class: "l" }, x ? `times “${FIX[x[0]].toLowerCase()}” helped` : "no fixes tried yet"));
+}
+
+function controls(s) {
+  const c = s.control;
+  const seg = (key, cur, opts) => h("div", { class: "seg" }, ...opts.map(([v, t]) =>
+    h("button", { class: v === cur ? "on" : "", onclick: () => control({ [key]: v }) }, t)));
+  $("controls").replaceChildren(
+    h("span", {}, "Person"), seg("profile", c.profile, Object.entries(s.people).map(([k, p]) => [k, p.display])),
+    h("span", {}, "Wearing"), seg("clothing", c.clothing_override, [["auto", "Camera"], ["outer", "Layer"], ["none", "No layer"]]),
+    h("span", {}, "Season"), seg("mode", c.mode, [["heating", "Heating"], ["cooling", "Cooling"], ["unknown", "Unknown"]]),
+    h("span", {}, "Camera"), seg("camera", c.camera_setting, [["on", "On"], ["off", "Off"]]));
+}
+
+function privacy(s) {
+  const sent = s.people[s.control.profile].summary_sent;
+  $("privacy").replaceChildren(
+    h("div", {}, "🔒 Images and answers stay on this desk. The room only gets an anonymous comfort summary."),
+    h("details", {}, h("summary", {}, "What is sent"), h("pre", {}, sent ? JSON.stringify(sent, null, 1) : "nothing yet")));
+}
+
+function tech(s) {
+  if (!$("techbox").open) return;
+  const rows = [
+    ["Baseline PMV", (p) => (p.estimate ? p.estimate.pmv_baseline : "–")],
+    ["Personal offset", (p) => (p.estimate ? p.estimate.offset : "–")],
+    ["Personal PMV", (p) => (p.estimate ? p.estimate.pmv_personal : "–")],
+    ["Clothing (clo)", (p) => (p.estimate ? `${p.estimate.clothing} (${p.estimate.clo})` : "–")],
+    ["Band / with fix", (p) => (p.estimate ? `${range(p.estimate.band)} / ${range(p.decision && p.decision.band_with_fix)}` : "–")],
+    ["Engine", (p) => (p.decision ? `${p.decision.reason} · ${p.decision.energy_role || "–"} · ${p.decision.room_signal || "–"}` : "–")],
+    ["Evaluation", (p) => { const r = p.evaluation; return `${r.verdict}${r.n ? ` · acc ${r.baseline_accuracy}/${r.personal_accuracy} · MAE ${r.baseline_mae}/${r.personal_mae}` : ""}`; }],
+    ["Fix experience", (p) => Object.values(p.experience).map((x) => x.text).join(" · ")],
+    ["Pseudonym", (p) => p.pid],
+  ];
+  const people = Object.values(s.people);
+  const a = s.assumptions;
+  $("tech").replaceChildren(
+    h("table", {}, h("tr", {}, h("th", {}, ""), ...people.map((p) => h("th", {}, p.display))),
+      ...rows.map(([k, f]) => h("tr", {}, h("th", {}, k), ...people.map((p) => h("td", {}, String(f(p))))))),
+    h("p", { class: "small muted" }, `PMV (ISO 7730), assumed: radiant = air, ${a.air_speed_m_s} m/s, ${a.metabolic_rate_met} met, clo ${Object.entries(a.clothing_clo).map(([k, v]) => `${k} ${v}`).join("/")}. ` +
+      `Raw ${f1(s.env.raw_t)} °C. Hub ${s.hub.url || "not configured"}. Stored on device: ${s.privacy_receipt.stored_on_device.join(", ")}.`),
+    h("button", { class: "link", onclick: () => { if (confirm("Give this person a new anonymous ID?")) control({ reset_pid: true }); } }, "New anonymous ID"),
+    h("pre", {}, s.events.slice(-12).reverse().map((e) => `${Math.round(e.at - s.time)}s ${e.event}`).join("\n")));
+}
+
+function render(s) { chips(s); now(s); stats(s); controls(s); privacy(s); tech(s); window.__s = s; }
+$("techbox").addEventListener("toggle", () => window.__s && tech(window.__s));
+
+let fails = 0;
+(async function poll() {
+  try {
+    const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 2500);
+    const s = await (await fetch(DEVICE + "/state", { signal: ac.signal })).json(); clearTimeout(t);
+    fails = 0; banner(""); render(s);
+  } catch (e) {
+    if (++fails >= 2) { $("chips").replaceChildren(h("span", { class: "chip bad" }, "device offline")); banner(`Can't reach ${DEVICE}`); }
+  }
+  setTimeout(poll, 1000);
+})();
+</script>
+</body>
+</html>

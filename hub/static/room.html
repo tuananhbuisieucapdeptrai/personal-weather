@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personal Weather · Room</title>
+<!-- T4.3/T4.4 room view (Tuan Anh). Served by hub/server.py at /room; data from /room.json.
+     Only pseudonymous hub summaries (no names, votes or images). Offline, no external resources. -->
+<style>
+:root {
+  --bg: #f4f6f9; --panel: #fff; --ink: #18202e; --muted: #667085; --line: #e3e7ee;
+  --accent: #2563eb; --accent-soft: #e8efff; --on: #fff;
+  --ok: #157f3c; --ok-soft: #e4f5e9; --bad: #b42318; --bad-soft: #fde8e6;
+  --warm: #b45309; --warm-soft: #fdf0df; --demo: #6d28d9; --demo-soft: #f0e9fe; --chip: #eef1f6;
+  --band: #3b82f6; --band-fix: #bcd3fb;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #10141b; --panel: #19202a; --ink: #e8ecf3; --muted: #9ba6b9; --line: #2a3240;
+    --accent: #6e9dff; --accent-soft: #1d2a45; --on: #0b1020;
+    --ok: #5fd08a; --ok-soft: #16301f; --bad: #ff8c7d; --bad-soft: #3c1a17;
+    --warm: #f3a85c; --warm-soft: #3a2914; --demo: #b9a0ff; --demo-soft: #271f3d; --chip: #242b37;
+    --band: #5b8ff5; --band-fix: #2c4470;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 20px 16px 40px; display: grid; gap: 14px; }
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.top h1 { margin: 0 auto 0 0; font-size: 20px; }
+.chip { padding: 3px 10px; border-radius: 999px; background: var(--chip); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.chip.demo { background: var(--demo-soft); color: var(--demo); }
+.chip.fast { background: var(--warm-soft); color: var(--warm); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+.muted { color: var(--muted); } .small { font-size: 13px; }
+
+.rec { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.rec .big { font-size: 28px; font-weight: 700; line-height: 1.15; }
+.rec .sub { color: var(--muted); margin-top: 2px; }
+.rec .go { margin-left: auto; text-align: right; }
+.agree { font: inherit; font-weight: 700; font-size: 16px; padding: 10px 22px; border-radius: 12px; border: 0;
+  background: var(--accent); color: var(--on); cursor: pointer; }
+.agree:hover { filter: brightness(1.08); }
+.down { color: var(--ok); } .up { color: var(--warm); }
+.alert { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--bad-soft); color: var(--bad); font-size: 14px; }
+
+.chart { position: relative; }
+.axis, .row .track { margin-left: 150px; position: relative; }
+.axis { height: 20px; margin-top: 4px; font-size: 12px; color: var(--muted); }
+.labels { height: 20px; }
+.axis span { position: absolute; transform: translateX(-50%); }
+.row { position: relative; display: flex; align-items: center; height: 34px; }
+.row .who { position: absolute; left: 0; width: 142px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .track { flex: 1; height: 14px; background: var(--chip); border-radius: 7px; }
+.row .b { position: absolute; top: 0; bottom: 0; border-radius: 7px; }
+.row .b.fix { background: var(--band-fix); }
+.row .b.now { background: var(--band); }
+.row.away { opacity: .4; }
+.row .flag { position: absolute; right: -2px; top: -16px; font-size: 11px; font-weight: 700; color: var(--bad); }
+.vline { position: absolute; top: 20px; bottom: 24px; width: 0; border-left: 2px dashed var(--muted); z-index: 1; }
+.vline.rec { border-left: 3px solid var(--accent); }
+.vline span { position: absolute; top: -20px; transform: translateX(-50%); font-size: 11px; font-weight: 700; white-space: nowrap; background: var(--panel); padding: 0 3px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.sw { display: inline-block; width: 18px; height: 8px; border-radius: 4px; vertical-align: middle; margin-right: 5px; }
+.tag { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 5px; background: var(--demo-soft); color: var(--demo); margin-left: 4px; }
+
+.ctl { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; font-size: 14px; }
+.ctl label { color: var(--muted); margin-right: 8px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; vertical-align: middle; }
+.seg button { font: inherit; font-size: 14px; padding: 6px 14px; border: 0; border-right: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--accent); color: var(--on); }
+.seg .val { padding: 6px 12px; font-weight: 700; }
+#banner { display: none; } #banner.show { display: block; }
+h2 { margin: 0 0 10px; font-size: 16px; }
+h2 .muted { font-weight: 400; font-size: 13px; margin-left: 6px; }
+.ur { display: grid; grid-template-columns: 142px 1fr 64px; gap: 8px; align-items: center; height: 28px; font-size: 13px; }
+.ur .t { height: 10px; background: var(--chip); border-radius: 5px; overflow: hidden; }
+.ur .t > div { height: 100%; background: var(--bad); border-radius: 5px; }
+.ur .m { text-align: right; font-weight: 700; color: var(--bad); }
+.ur.away { opacity: .55; }
+.layer { display: grid; grid-template-columns: 104px 1fr; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.layer:first-of-type { border-top: 0; }
+.lt { align-self: start; font-size: 11px; font-weight: 800; letter-spacing: .04em; padding: 3px 8px; border-radius: 6px; text-align: center; }
+.lt.m { background: var(--ok-soft); color: var(--ok); }
+.lt.p { background: var(--accent-soft); color: var(--accent); }
+.lt.o { background: var(--chip); color: var(--muted); }
+
+@media (max-width: 560px) {
+  .ur { grid-template-columns: 86px 1fr 54px; }
+  .layer { grid-template-columns: 1fr; gap: 4px; } .lt { justify-self: start; }
+  .axis, .row .track { margin-left: 92px; }
+  .row .who { width: 86px; font-size: 12px; }
+  .rec .big { font-size: 23px; }
+  .rec .go { margin-left: 0; text-align: left; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><h1>Personal Weather · Room</h1><span id="chips"></span></div>
+  <div id="banner" class="card alert"></div>
+  <div class="card" id="rec"><span class="muted">Loading…</span></div>
+  <div class="card"><div class="chart" id="chart"></div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--band)"></span>comfortable as is</span>
+      <span><span class="sw" style="background:var(--band-fix)"></span>comfortable with a layer</span>
+      <span><span class="sw" style="border-top:2px dashed var(--muted);height:0"></span>thermostat now</span>
+      <span><span class="sw" style="background:var(--accent);height:3px"></span>recommended</span>
+    </div>
+  </div>
+  <div class="card" id="unres"></div>
+  <div class="card" id="energy"></div>
+  <div class="card ctl" id="ctl"></div>
+  <div class="small muted" id="foot"></div>
+</div>
+<script>
+"use strict";
+const LO = 18, HI = 27;
+const pos = (t) => `${((Math.min(HI, Math.max(LO, t)) - LO) / (HI - LO)) * 100}%`;
+function h(tag, attrs, ...kids) {           // never uses innerHTML with data
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (v != null && v !== false) el.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) if (c != null && c !== false) el.append(c instanceof Node ? c : String(c));
+  return el;
+}
+const $ = (id) => document.getElementById(id);
+const f1 = (x) => Number(x).toFixed(1);
+const nameOf = (p) => (p.sim ? p.name : `Desk ${p.pid}`);
+function banner(t) { $("banner").textContent = t; $("banner").classList.toggle("show", !!t); }
+
+async function post(path, body) {
+  try {
+    const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    banner(""); render(j);
+  } catch (e) { banner("Didn't work: " + e.message); }
+}
+
+function renderRec(v) {
+  const r = v.recommendation, mode = r.mode;
+  const word = mode === "heating" ? "heating" : "cooling";
+  let main, sub = [], go = null;
+  if (r.reason === "unknown_mode") { main = "No recommendation"; sub.push("Season unknown: set Heating or Cooling on a desk."); }
+  else if (r.reason === "nobody_present") { main = `Keep ${f1(v.setpoint)} °C`; sub.push("Nobody is here."); }
+  else if (r.reason === "keep_current") { main = `Keep ${word} at ${f1(v.setpoint)} °C`; sub.push("It already suits everyone here."); }
+  else {
+    const d = r.change, dir = d < 0 ? "down" : "up";
+    main = h("span", {}, `Set ${word} to ${f1(r.setpoint)} °C `, h("span", { class: dir }, `${d > 0 ? "+" : ""}${f1(d)}`));
+    sub.push(`now ${f1(v.setpoint)} °C`);
+    if (r.reason === "recently_agreed") sub.push(`agreed recently: next check in ${Math.ceil(r.next_check_in_s / 60)} min`);
+    else go = h("div", { class: "go" },
+      h("button", { class: "agree", onclick: () => post("/room/agree", { setpoint: r.setpoint }) }, "Agree"),
+      h("div", { class: "small muted", style: "margin-top:4px" }, "then change the thermostat by hand"));
+  }
+  if (r.setpoint != null && r.reason !== "keep_current") {
+    sub.push(r.everyone_ok ? "everyone comfortable" : `${r.left_out.length} still uncomfortable`);
+    if (r.needs_fix.length) sub.push(`${r.needs_fix.length} with a layer on`);
+  }
+  const unresolved = v.people.filter((p) => p.present && p.unresolved);
+  $("rec").replaceChildren(...[h("div", { class: "rec" },
+    h("div", {}, h("div", { class: "big" }, main), h("div", { class: "sub" }, sub.join(" · "))), go),
+    r.left_out.length || unresolved.length ? h("div", { class: "alert" },
+      `Uncomfortable right now: ${[...new Set([...r.left_out, ...unresolved.map((p) => p.pid)])].map((pid) => nameOf(v.people.find((p) => p.pid === pid))).join(", ")}`) : null].filter(Boolean));
+}
+
+function renderChart(v) {
+  const r = v.recommendation;
+  const ticks = []; for (let t = LO; t <= HI; t += 1) ticks.push(h("span", { style: `left:${pos(t)}` }, t));
+  const lines = [h("div", { class: "vline", style: `left:calc(150px + (100% - 150px) * ${(v.setpoint - LO) / (HI - LO)})` },
+    h("span", {}, `now ${f1(v.setpoint)}`))];
+  if (r.setpoint != null && r.setpoint !== v.setpoint) lines.push(h("div", { class: "vline rec",
+    style: `left:calc(150px + (100% - 150px) * ${(r.setpoint - LO) / (HI - LO)})` }, h("span", {}, f1(r.setpoint))));
+  const rows = v.people.map((p) => {
+    const bars = [];
+    if (p.band_with_fix) bars.push(h("div", { class: "b fix", style: `left:${pos(p.band_with_fix[0])};width:calc(${pos(p.band_with_fix[1])} - ${pos(p.band_with_fix[0])})` }));
+    if (p.band_now) bars.push(h("div", { class: "b now", style: `left:${pos(p.band_now[0])};width:calc(${pos(p.band_now[1])} - ${pos(p.band_now[0])})` }));
+    return h("div", { class: "row" + (p.present ? "" : " away") },
+      h("div", { class: "who", title: p.sim ? p.note : "pseudonymous desk" }, nameOf(p), p.sim ? h("span", { class: "tag" }, "SIM") : null,
+        p.present ? null : h("span", { class: "muted" }, " (away)")),
+      h("div", { class: "track" }, ...bars));
+  });
+  if (!rows.length) rows.push(h("p", { class: "muted" }, "No desks have reported yet."));
+  const chart = $("chart");
+  chart.replaceChildren(h("div", { class: "labels" }), ...rows, h("div", { class: "axis" }, ...ticks), ...lines);
+  if (matchMedia("(max-width:560px)").matches) chart.querySelectorAll(".vline").forEach((el) => {
+    el.style.left = el.style.left.replaceAll("150px", "92px"); });
+}
+
+function renderCtl(v) {
+  $("ctl").replaceChildren(
+    h("div", {}, h("label", {}, "Simulated coworkers"), h("span", { class: "seg" },
+      h("button", { class: v.sims_on ? "on" : "", onclick: () => post("/room/sims", { on: true }) }, "Show"),
+      h("button", { class: v.sims_on ? "" : "on", onclick: () => post("/room/sims", { on: false }) }, "Hide"))),
+    h("div", {}, h("label", {}, "Thermostat now"), h("span", { class: "seg" },
+      h("button", { onclick: () => post("/room/setpoint", { value: v.setpoint - 0.5 }) }, "−"),
+      h("span", { class: "val" }, `${f1(v.setpoint)} °C`),
+      h("button", { onclick: () => post("/room/setpoint", { value: v.setpoint + 0.5 }) }, "+"))));
+  const last = v.agreements[v.agreements.length - 1];
+  $("foot").textContent = "Only anonymous desk summaries are used here. Nothing changes until someone agrees." +
+    (last ? ` Last agreed: ${f1(last.from)} → ${f1(last.to)} °C at ${new Date(last.at * 1000).toLocaleTimeString()}.` : "");
+}
+
+function renderUnresolved(v) {
+  const rows = v.people.filter((p) => p.unresolved_min > 0).sort((a, b) => b.unresolved_min - a.unresolved_min);
+  const max = Math.max(30, ...rows.map((p) => p.unresolved_min));
+  const since = new Date(v.since * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  $("unres").replaceChildren(
+    h("h2", {}, "Uncomfortable with no free fix", h("span", { class: "muted" }, `minutes since ${since}`)),
+    ...(rows.length ? rows.map((p) => h("div", { class: "ur" + (p.present ? "" : " away") },
+      h("div", { class: "who" }, nameOf(p), p.sim ? h("span", { class: "tag" }, "SIM") : null),
+      h("div", { class: "t" }, h("div", { style: `width:${(p.unresolved_min / max) * 100}%` })),
+      h("div", { class: "m" }, `${Math.round(p.unresolved_min)} min`)))
+      : [h("div", { class: "muted small" }, "Nobody so far.")]));
+}
+
+function renderEnergy(v) {
+  const e = v.energy, m = e.measured, p = e.proposed;
+  const word = p.mode === "cooling" ? "Cooling" : "Heating";
+  let prop;
+  if (p.status === "proposed") prop = `${word} ${f1(p.recommended)} °C instead of ${f1(p.current)} °C · needs agreement`;
+  else if (p.status === "agreed") prop = `Agreed ${f1(p.last_agreement.from)} → ${f1(p.last_agreement.to)} °C at ${new Date(p.last_agreement.at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · thermostat not verified`;
+  else if (p.status === "keep") prop = `Keep ${f1(p.current)} °C`;
+  else prop = "No proposal (season unknown or nobody here)";
+  const layer = (cls, tag, ...body) => h("div", { class: "layer" }, h("span", { class: "lt " + cls }, tag), h("div", {}, ...body));
+  $("energy").replaceChildren(h("h2", {}, "Energy"),
+    layer("m", "MEASURED", `${m.people_present} here · ${m.comfortable} comfortable · ${m.fix_available} with a free fix · ${m.unresolved} with no fix`,
+      m.includes_simulated ? h("span", { class: "tag" }, "incl. SIM") : null),
+    layer("p", "PROPOSED", prop),
+    layer("o", "MODELLED", e.modelled.text, h("div", { class: "small muted", style: "margin-top:4px" }, e.modelled.source)));
+}
+
+function render(v) {
+  const chips = [];
+  if (v.sims_on) chips.push(h("span", { class: "chip demo" }, "Includes simulated coworkers"));
+  if (v.labels.includes("ACCELERATED")) chips.push(h("span", { class: "chip fast" }, "Sped up"));
+  chips.push(h("span", { class: "chip" }, `${v.recommendation.mode}`));
+  $("chips").replaceChildren(...chips);
+  renderRec(v); renderChart(v); renderUnresolved(v); renderEnergy(v); renderCtl(v);
+}
+
+(async function poll() {
+  try { render(await (await fetch("/room.json")).json()); }
+  catch (e) { banner("Hub not reachable."); }
+  setTimeout(poll, 2000);
+})();
+</script>
+</body>
+</html>
