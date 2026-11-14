@@ -1,0 +1,39 @@
+# --- Privacy: no images or datasets in git, ever (spec C2: photos deleted after the event) ---
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.heic
+*.mp4
+*.mov
+dataset/
+datasets/
+tools/eval/data/
+captures/
+# Allowed images (diagrams, device photos for the README) go in docs/img/ and are added on purpose:
+!docs/img/*.png
+!docs/img/*.jpg
+
+# Device-side runtime data (feedback log, model values, pseudonym) stays on the device
+device/python/state/
+*.db
+*.sqlite
+
+# Models exported from Edge Impulse are deployed to the board, not committed
+*.eim
+
+# Secrets / local network config (hotspot password etc.)
+.env
+*.local.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Editors / OS
+.DS_Store
+.vscode/
+.idea/
