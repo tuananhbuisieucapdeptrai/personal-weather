@@ -1,5 +1,5 @@
 name: Personal Weather Kickoff
 description: Hardware bring-up checks for the Personal Weather desk companion.
 icon: "🌤️"
-ports: []
+ports: [8000]   # device API (api.py); stop other apps using 8000 first (e.g. vision-check)
 bricks: []
