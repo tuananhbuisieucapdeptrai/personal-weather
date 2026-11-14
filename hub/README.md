@@ -37,3 +37,23 @@ This is the desk owner's own view. The room view (A1–A4) uses hub summaries on
 **On the laptop without the board:**
 1. Run `python3 device/python/main.py --mock --demo`.
 2. Open `http://127.0.0.1:8080/?device=http://127.0.0.1:8000`.
+
+## Room view (T4.3 + T4.4)
+
+Open `http://<laptop>:8080/room`. It uses **only** the anonymous desk summaries: no names, votes or images.
+
+- **Recommendation (A1):** each person counts as OK at a setpoint if it's inside their comfort range, or inside their range with a layer when they have one.
+  - Heating takes the *lowest* setpoint that suits everyone present; cooling takes the *highest*; with an unknown season there's no recommendation.
+  - If nobody fits everywhere, it picks the setpoint that suits the most people and lists who is still uncomfortable.
+  - It proposes only changes of 0.5 °C or more. **Nothing changes until someone clicks Agree,** and the thermostat is then changed by hand.
+  - After an agreement there's no new proposal for 90 minutes, unless people arrive or leave. With `--demo` this is 60 s, labelled "Sped up".
+- **Simulated coworkers (A2):** three synthetic people, each tagged **SIM**, switched on and off on the page. The page shows "Includes simulated coworkers" while they're on.
+- **Thermostat now:** enter the real setting with − / +. This isn't an agreement.
+
+Run it with:
+
+```bash
+python3 hub/server.py --demo
+```
+
+The room JSON is at `/room.json`. Tests: `python3 -m unittest tools/tests/test_room.py`.
