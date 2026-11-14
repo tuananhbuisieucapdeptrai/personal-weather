@@ -28,6 +28,8 @@ personal-weather/
     python/            Linux side of the UNO Q
       main.py          (Tuan Anh) main loop
       contracts.py     (shared) the 0.2 contracts as checks, stdlib only
+      board_check.py   (kickoff) on-board PASS/FAIL test for Bridge, env, knob
+      shutter.py       (Minh) dark-frame shutter detector used by vision.py
       bridge_io.py     (Minh) talks to the sketch
       vision.py        (Minh) camera -> presence, clothing, camera status
       comfort.py       (Tuan Anh) PMV baseline, 3 classes, personal offset
@@ -143,6 +145,13 @@ Linux decides every sound except the click. The sketch never beeps by itself.
   - `"reset_pid"`: `true`
   - `"clothing"`: `"outer"`, `"none"` or `"auto"`. `auto` means the camera decides. This is the dashboard fallback from the 14:00 gate.
   - The response is the new `/state`. An invalid body returns 400 with the contract error.
+  - **Clothing override rules:**
+    - `outer` or `none` beats vision.
+    - The override stays until someone sets `auto`, including across profile switches.
+    - While it is active, the dashboard shows "CLOTHING: SET MANUALLY".
+    - The follow-up then asks the person to confirm the layer instead of using the camera, and it is labelled that way.
+    - If the 14:00 gate fails, vision keeps running for presence and shutter detection, and its `clothing` is always `"uncertain"`.
+  - Test with `tools/kickoff/api_smoke.sh`.
 - **`GET /state`**: a snapshot for the dashboard, owned by Tuan Anh. Its shape is **not frozen**. It covers live t/rh, vision, active profile, mode, per-profile predictions/offset/band, suggestion status, evidence-panel numbers, fix experience, the last summary sent, and an `inputs` field (`"live"` or `"mock"`).
 
 ### 0.2.4 Device → hub (spec C8)

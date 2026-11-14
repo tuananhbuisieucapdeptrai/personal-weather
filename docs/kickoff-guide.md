@@ -15,6 +15,31 @@ How to check each item in the "Confirm at kickoff" list in [interfaces.md](inter
 | 6 | Network + fixed IP | Both | 08:00–08:45 | ~20 min |
 | 7 | Team chat | Both | 08:00 | 2 min |
 
+## Quick start: everything is already in the repo
+
+The code in the sections below is already written. At kickoff you **run** it, you don't write it.
+
+| Item | Run this | Where |
+|---|---|---|
+| 1–3 | Put `device/sketch/sketch.ino` and `device/python/*.py` into one App Lab app and click **Run**. `main.py` starts `board_check.py`, which prints PASS/FAIL for Bridge, env, faces, knob calibration and knob behaviour, and prompts you for each knob step. | UNO Q (App Lab) |
+| 4 | `python3 tools/kickoff/shutter_calibrate.py`, then put the suggested value into `DARK_THRESHOLD` in `device/python/shutter.py` | UNO Q (SSH), or the laptop for a first estimate |
+| 5 | `tools/kickoff/api_smoke.sh` | Laptop, once `api.py` exists (T3.2) |
+| 6 | `bash tools/net/board_setup.sh` on the board, then `tools/net/laptop_check.sh` on the laptop | both |
+| 7 | Create the chat group by hand | phones |
+
+**How to get the files into App Lab:**
+1. Create a new app called `personal-weather` in App Lab.
+2. Replace its `sketch/sketch.ino` and `python/main.py` with the repo versions, and add the other `device/python/*.py` files next to `main.py`.
+3. If App Lab asks for libraries, add **Modulino** and **Arduino_RouterBridge** to the sketch.
+4. Afterwards, copy the generated `app.yaml` and `sketch/sketch.yaml` back into `device/` and commit them.
+
+**If `board_check` says a knob calibration FAIL:** it prints the exact `#define` values to set. Change them in `sketch.ino`, upload again and rerun.
+
+**After everything passes:**
+- In `sketch.ino`, set `DEBUG_KNOB_RAW 0`.
+- Leave `DEBUG_FACE_ACK 1` for now; it's harmless.
+- In `main.py`, set `RUN_BOARD_CHECK = False` when Tuan Anh's real main loop arrives (T2.4).
+
 ---
 
 ## 1. Bridge function names
