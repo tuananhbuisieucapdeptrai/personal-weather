@@ -73,8 +73,23 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 syst
 .seg button.on { background: var(--accent); color: var(--on); }
 .seg .val { padding: 6px 12px; font-weight: 700; }
 #banner { display: none; } #banner.show { display: block; }
+h2 { margin: 0 0 10px; font-size: 16px; }
+h2 .muted { font-weight: 400; font-size: 13px; margin-left: 6px; }
+.ur { display: grid; grid-template-columns: 142px 1fr 64px; gap: 8px; align-items: center; height: 28px; font-size: 13px; }
+.ur .t { height: 10px; background: var(--chip); border-radius: 5px; overflow: hidden; }
+.ur .t > div { height: 100%; background: var(--bad); border-radius: 5px; }
+.ur .m { text-align: right; font-weight: 700; color: var(--bad); }
+.ur.away { opacity: .55; }
+.layer { display: grid; grid-template-columns: 104px 1fr; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.layer:first-of-type { border-top: 0; }
+.lt { align-self: start; font-size: 11px; font-weight: 800; letter-spacing: .04em; padding: 3px 8px; border-radius: 6px; text-align: center; }
+.lt.m { background: var(--ok-soft); color: var(--ok); }
+.lt.p { background: var(--accent-soft); color: var(--accent); }
+.lt.o { background: var(--chip); color: var(--muted); }
 
 @media (max-width: 560px) {
+  .ur { grid-template-columns: 86px 1fr 54px; }
+  .layer { grid-template-columns: 1fr; gap: 4px; } .lt { justify-self: start; }
   .axis, .row .track { margin-left: 92px; }
   .row .who { width: 86px; font-size: 12px; }
   .rec .big { font-size: 23px; }
@@ -95,6 +110,8 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 syst
       <span><span class="sw" style="background:var(--accent);height:3px"></span>recommended</span>
     </div>
   </div>
+  <div class="card" id="unres"></div>
+  <div class="card" id="energy"></div>
   <div class="card ctl" id="ctl"></div>
   <div class="small muted" id="foot"></div>
 </div>
@@ -150,7 +167,7 @@ function renderRec(v) {
   $("rec").replaceChildren(...[h("div", { class: "rec" },
     h("div", {}, h("div", { class: "big" }, main), h("div", { class: "sub" }, sub.join(" · "))), go),
     r.left_out.length || unresolved.length ? h("div", { class: "alert" },
-      `Still uncomfortable: ${[...new Set([...r.left_out, ...unresolved.map((p) => p.pid)])].map((pid) => nameOf(v.people.find((p) => p.pid === pid))).join(", ")}`) : null].filter(Boolean));
+      `Uncomfortable right now: ${[...new Set([...r.left_out, ...unresolved.map((p) => p.pid)])].map((pid) => nameOf(v.people.find((p) => p.pid === pid))).join(", ")}`) : null].filter(Boolean));
 }
 
 function renderChart(v) {
@@ -167,7 +184,7 @@ function renderChart(v) {
     return h("div", { class: "row" + (p.present ? "" : " away") },
       h("div", { class: "who", title: p.sim ? p.note : "pseudonymous desk" }, nameOf(p), p.sim ? h("span", { class: "tag" }, "SIM") : null,
         p.present ? null : h("span", { class: "muted" }, " (away)")),
-      h("div", { class: "track" }, ...bars, p.present && p.unresolved ? h("span", { class: "flag" }, "uncomfortable") : null));
+      h("div", { class: "track" }, ...bars));
   });
   if (!rows.length) rows.push(h("p", { class: "muted" }, "No desks have reported yet."));
   const chart = $("chart");
@@ -190,13 +207,42 @@ function renderCtl(v) {
     (last ? ` Last agreed: ${f1(last.from)} → ${f1(last.to)} °C at ${new Date(last.at * 1000).toLocaleTimeString()}.` : "");
 }
 
+function renderUnresolved(v) {
+  const rows = v.people.filter((p) => p.unresolved_min > 0).sort((a, b) => b.unresolved_min - a.unresolved_min);
+  const max = Math.max(30, ...rows.map((p) => p.unresolved_min));
+  const since = new Date(v.since * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  $("unres").replaceChildren(
+    h("h2", {}, "Uncomfortable with no free fix", h("span", { class: "muted" }, `minutes since ${since}`)),
+    ...(rows.length ? rows.map((p) => h("div", { class: "ur" + (p.present ? "" : " away") },
+      h("div", { class: "who" }, nameOf(p), p.sim ? h("span", { class: "tag" }, "SIM") : null),
+      h("div", { class: "t" }, h("div", { style: `width:${(p.unresolved_min / max) * 100}%` })),
+      h("div", { class: "m" }, `${Math.round(p.unresolved_min)} min`)))
+      : [h("div", { class: "muted small" }, "Nobody so far.")]));
+}
+
+function renderEnergy(v) {
+  const e = v.energy, m = e.measured, p = e.proposed;
+  const word = p.mode === "cooling" ? "Cooling" : "Heating";
+  let prop;
+  if (p.status === "proposed") prop = `${word} ${f1(p.recommended)} °C instead of ${f1(p.current)} °C · needs agreement`;
+  else if (p.status === "agreed") prop = `Agreed ${f1(p.last_agreement.from)} → ${f1(p.last_agreement.to)} °C at ${new Date(p.last_agreement.at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · thermostat not verified`;
+  else if (p.status === "keep") prop = `Keep ${f1(p.current)} °C`;
+  else prop = "No proposal (season unknown or nobody here)";
+  const layer = (cls, tag, ...body) => h("div", { class: "layer" }, h("span", { class: "lt " + cls }, tag), h("div", {}, ...body));
+  $("energy").replaceChildren(h("h2", {}, "Energy"),
+    layer("m", "MEASURED", `${m.people_present} here · ${m.comfortable} comfortable · ${m.fix_available} with a free fix · ${m.unresolved} with no fix`,
+      m.includes_simulated ? h("span", { class: "tag" }, "incl. SIM") : null),
+    layer("p", "PROPOSED", prop),
+    layer("o", "MODELLED", e.modelled.text, h("div", { class: "small muted", style: "margin-top:4px" }, e.modelled.source)));
+}
+
 function render(v) {
   const chips = [];
   if (v.sims_on) chips.push(h("span", { class: "chip demo" }, "Includes simulated coworkers"));
   if (v.labels.includes("ACCELERATED")) chips.push(h("span", { class: "chip fast" }, "Sped up"));
   chips.push(h("span", { class: "chip" }, `${v.recommendation.mode}`));
   $("chips").replaceChildren(...chips);
-  renderRec(v); renderChart(v); renderCtl(v);
+  renderRec(v); renderChart(v); renderUnresolved(v); renderEnergy(v); renderCtl(v);
 }
 
 (async function poll() {

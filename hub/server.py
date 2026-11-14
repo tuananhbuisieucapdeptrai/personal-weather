@@ -137,6 +137,7 @@ def make_handler(store: SummaryStore, room: "room_mod.Room | None" = None):
                 length = int(self.headers.get("Content-Length") or 0)
                 msg = json.loads(self.rfile.read(length) or b"null")
                 store.receive(msg, source=self.client_address[0])
+                room.observe(store.view())          # A3 minutes accrue even if nobody watches
             except (ValueError, contracts.ContractError) as e:
                 print(f"[hub] REJECTED from {self.client_address[0]}: {e}", flush=True)
                 return self._send(400, {"error": str(e)})

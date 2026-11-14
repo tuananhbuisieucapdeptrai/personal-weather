@@ -49,6 +49,15 @@ Open `http://<laptop>:8080/room`. It uses **only** the anonymous desk summaries:
   - After an agreement there's no new proposal for 90 minutes, unless people arrive or leave. With `--demo` this is 60 s, labelled "Sped up".
 - **Simulated coworkers (A2):** three synthetic people, each tagged **SIM**, switched on and off on the page. The page shows "Includes simulated coworkers" while they're on.
 - **Thermostat now:** enter the real setting with − / +. This isn't an agreement.
+- **Uncomfortable with no free fix (A3):**
+  - One bar per person: the minutes they were present and uncomfortable with no feasible fix, including after saying "not possible".
+  - Bars stay after the person leaves, and there's no single fairness score.
+  - In the fallback recommendation each person weighs 1 + minutes/30, at most 3.
+  - 20+ unresolved minutes since the last agreement allow an early re-check.
+- **Energy (A4),** three separate layers:
+  - **MEASURED:** what the hub saw (people present, comfortable, with a free fix, with no fix).
+  - **PROPOSED:** the recommendation or agreement. It needs a person, and the thermostat itself isn't verified.
+  - **MODELLED:** research context only, with no percentage claimed. Hoyt, Arens & Zhang (2015), *Building and Environment* 88:89–96, doi:10.1016/j.buildenv.2014.09.010.
 
 Run it with:
 

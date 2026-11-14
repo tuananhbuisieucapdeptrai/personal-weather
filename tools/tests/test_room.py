@@ -86,6 +86,28 @@ class TestRoomHTTP(unittest.TestCase):
         self.assertEqual(v["recommendation"]["mode"], "unknown")
         self.assertFalse(v["people"][0]["present"])
 
+    def test_unresolved_minutes_and_energy(self):
+        msg = {"pid": "p-0b01", "present": True, "mode": "heating", "band_now": [23.0, 26.0],
+               "state": -1, "unresolved": True}                          # said "not possible": no band_with_fix
+        self.call("POST", "/summary", msg)
+        for _ in range(3):                                               # 3 x 60 s, demo counts 10x
+            self.now[0] += 60
+            self.call("POST", "/summary", msg)
+        _, v = self.call("GET", "/room.json")
+        p = v["people"][0]
+        self.assertEqual(p["unresolved_min"], 30.0)
+        self.assertEqual(p["weight"], 2.0)
+        e = v["energy"]
+        self.assertEqual(e["measured"]["unresolved"], 1)
+        self.assertEqual(e["proposed"]["status"], "proposed")
+        self.assertFalse(e["proposed"]["thermostat_verified"])
+        self.assertNotIn("%", e["modelled"]["text"])
+        # Leaves (stale): minutes stay visible, no longer counted as present.
+        self.now[0] += 121
+        _, v = self.call("GET", "/room.json")
+        self.assertEqual(v["people"][0]["unresolved_min"], 30.0)
+        self.assertFalse(v["people"][0]["present"])
+
     def test_setpoint_validation(self):
         self.assertEqual(self.call("POST", "/room/setpoint", {"value": 22.0})[1]["setpoint"], 22.0)
         self.assertEqual(self.call("POST", "/room/setpoint", {"value": 40})[0], 400)
