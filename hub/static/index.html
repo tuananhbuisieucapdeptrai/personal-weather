@@ -94,10 +94,7 @@ button.link { font: inherit; font-size: 13px; background: none; border: 1px soli
 
   <div class="card" id="now"><span class="muted">Waiting for the device…</span></div>
 
-  <div class="stats">
-    <div class="card stat" id="learn"></div>
-    <div class="card stat" id="fix"></div>
-  </div>
+  <div class="card stat" id="fix"></div>
 
   <div class="card ctl" id="controls"></div>
 
@@ -186,9 +183,6 @@ function now(s) {
 
 function stats(s) {
   const p = s.people[s.control.profile], r = p.evaluation;
-  $("learn").replaceChildren(
-    h("div", { class: "n" }, r.n ? `${Math.round(r.personal_accuracy * r.n)} / ${r.n}` : "–"),
-    h("div", { class: "l" }, r.n ? `answers predicted right (formula alone: ${Math.round(r.baseline_accuracy * r.n)})` : "no answers yet: turn the knob"));
   const x = Object.entries(p.experience).find(([, v]) => v.n > 0);
   $("fix").replaceChildren(
     h("div", { class: "n" }, x ? `${x[1].helped} / ${x[1].n}` : "–"),

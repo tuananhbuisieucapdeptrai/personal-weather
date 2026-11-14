@@ -160,7 +160,10 @@ Each module also has a self-test, e.g. `python3 device/python/comfort.py`.
 
 The offset helps people who differ from the average a lot. It costs a little for an average person, because noisy votes nudge the offset around.
 
-**Live results (real feedback on the device):** ⏳ TO FILL after the demo runs. Generate the table with:
+**Live results (real feedback on the device):**
+- **Not enough genuine votes yet.** Tonight's votes were knob tests and debugging, deliberately clicking cold, OK and warm within minutes, so they say nothing about real comfort.
+- We archived them on the device (`*.test-2026-11-14`) instead of counting them, and started a fresh log.
+- The table fills in once each person has given genuine votes over days. Generate it with:
 
 ```bash
 python3 tools/eval/live_report.py --log <copy of state/feedback_log.jsonl>
@@ -263,7 +266,7 @@ Energy is shown in three separate layers. No percentage is claimed for this devi
 ## Limitations and next steps
 
 - Clothing detection is validated on a small two-person photo set plus short live tests. It misses open jackets. The manual "Wearing" fallback stays.
-- Live comfort-model results (⏳) will be small-sample, from two people over one weekend.
+- No genuine live comfort-model results yet (only test votes from one evening, archived).
 - No authentication on the device API.
 - Simulated coworkers stand in for a real multi-desk office. They are always labelled SIMULATED.
 - One air sensor per desk: drafts, sun and radiators aren't measured. Only two fixes so far (add or remove a layer).

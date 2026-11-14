@@ -52,7 +52,7 @@ A privacy-first Edge AI desk companion that learns how *you* feel in a shared ro
 
 **Results so far.**
 - In simulation, the personal offset raised 3-class accuracy from 0.48 to **0.73** for someone who runs cold, and from 0.46 to **0.66** for someone who runs warm. It cost a little for an average person (0.75 → 0.73), and we report that too.
-- Live results from our own feedback: ⏳.
+- Live results from our own feedback: not yet meaningful. One evening of test votes, archived rather than counted; the method is in place.
 - On-device clothing detection: our first trained model scored 92.5 % on held-out photos, but **failed live** (it learned colour and sleeve shortcuts). We replaced it with **zero-shot CLIP**: no training on our photos, **40/40 on the held-out set**, about 0.5 s per check on the UNO Q. It still misses open jackets, and we say so.
 
 **Compared with what exists.**
