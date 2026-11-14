@@ -4,6 +4,8 @@
 #   bash board_setup.sh                    -> set hostname pw-desk, print network info
 #   bash board_setup.sh --static 172.20.10.12/28 172.20.10.1
 #                                          -> ALSO pin a static IP (fallback only, see guide)
+#   bash board_setup.sh --check-hub <laptop>.local
+#                                          -> ALSO test board -> laptop by name (no IP needed)
 set -u
 NAME=pw-desk
 if [ "$(hostname)" != "$NAME" ]; then
@@ -28,6 +30,18 @@ if [ "${1:-}" = "--static" ]; then
   sudo nmcli con mod "$CONN" ipv4.method manual ipv4.addresses "$ADDR" ipv4.gateway "$GW" ipv4.dns "$GW" \
     && sudo nmcli con up "$CONN"
   echo "New IP: $(hostname -I)"
+fi
+if [ "${1:-}" = "--check-hub" ]; then
+  HUB="${2:?give the laptop .local name or IP}"
+  echo
+  if getent hosts "$HUB" >/dev/null; then
+    echo "PASS  board resolves $HUB -> $(getent hosts "$HUB" | awk '{print $1}')"
+  else
+    echo "FAIL  board cannot resolve $HUB (no mDNS on the board?): use the laptop's IP instead"
+  fi
+  echo "(start tools/net/laptop_check.sh on the laptop first; it listens for 60 s)"
+  curl -s -m 5 "http://$HUB:8080/ping" && echo "PASS  board -> laptop:8080" || echo "FAIL  no answer from $HUB:8080"
+  echo "Use:  export PW_HUB_URL=http://$HUB:8080"
 fi
 echo
 echo "Write into docs/interfaces.md 0.3:  board IP = $(hostname -I | awk '{print $1}')"

@@ -13,7 +13,7 @@ Draft defaults written by Tuan Anh. Minh confirms or changes each one, then tick
 - [ ] **Response mapping**: +1 = DO, 0 = LATER, −1 = NO. Every interaction starts at 0, so an accidental press means "Not now", which carries no penalty.
 - [ ] **Smoothing** happens in Python. The sketch sends raw values once per second.
 - [ ] **Shutter**: after ~3 s of dark frames, vision stops capturing and reports `"shutter"`. Capture starts again only when someone presses "camera on" on the dashboard.
-- [ ] **Dashboard clothing override** (`clothing` in `/control`). This is the fallback if the 14:00 gate fails.
+- [ ] **Dashboard clothing override** (`clothing` in `/control`). This is the fallback if the 14:00 gate fails. *Built and tested by Tuan Anh: `api.py` passes all 11 checks in `api_smoke.sh`. Needs only Minh's OK on the rules in 0.2.3.*
 - [ ] **Ports / hostname**: device API on `pw-desk.local:8000`, hub on laptop port `8080`.
 - [ ] **Team chat channel** for the 30-minute rule: ______________
 
@@ -178,7 +178,8 @@ Linux decides every sound except the click. The sketch never beeps by itself.
 **Network**
 - The laptop runs a **Wi-Fi hotspot**. If macOS Internet Sharing is awkward at the venue, use a phone hotspot. The SSID and password are not committed.
 - The UNO Q joins with hostname **`pw-desk`** (`pw-desk.local`). Write its fixed IP here as a fallback: ______________
-- The hub address for the device comes from the env var `PW_HUB_URL`, for example `http://<laptop-ip>:8080`.
+- The hub address for the device comes from the env var `PW_HUB_URL`. Prefer the laptop's `.local` name, which survives IP changes: `http://<laptop-name>.local:8080`. Use the IP if the board can't resolve the name. Test with `bash tools/net/board_setup.sh --check-hub <laptop-name>.local`.
+- The laptop's macOS firewall is off (checked Friday), so it won't block the board.
 
 **Blocked for more than 30 minutes → say so immediately** in the team channel. Don't wait for the next sync.
 
