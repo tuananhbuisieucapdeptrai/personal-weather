@@ -280,6 +280,8 @@ class App:
                 if is_active:
                     self.response_picker = None
                 self._event("suggestion_no_response", profile=p.name)
+            if is_active and p.engine.active is not None and p.follow_up is None:
+                self._accept_by_action(p, now)
             if p.follow_up and p.follow_up.state != "done":
                 msgs = p.follow_up.tick(now, *self.clothing) if is_active else []
                 if msgs:
@@ -311,6 +313,22 @@ class App:
                             energy_role=p.decision["offer"]["energy_role"])
         self._update_face(now)
         self._summaries(now, fresh)
+
+    def _accept_by_action(self, p, now):
+        """Acting counts as answering: while a suggestion is on screen, if the CAMERA sees the
+        suggested change (e.g. no layer -> layer; already stable in vision), treat it as "Do it".
+        A dashboard setting does not count. The follow-up still asks; silence stays 'unknown'."""
+        fix = suggest.FIXES[p.engine.active["fix"]]
+        if self.clothing != (fix["to"], "camera"):
+            return
+        rec = p.engine.respond(now, suggest.DO_IT)
+        self.response_picker = None
+        p.follow_up = suggest.FollowUp(rec, fix["from"], now, accelerated=self.accelerated)
+        self.hold_until = now + HOLD_AFTER_CONFIRM_S
+        self._send([{"face": "check"}, {"beep": "chirp"}])
+        self._event("suggestion_response", profile=p.name, response=suggest.DO_IT, fix=rec["fix"],
+                    energy_role=rec["energy_role"], by="camera")
+        self._save()
 
     def _camera_transition(self, camera, now):
         if camera != self.camera_prev:

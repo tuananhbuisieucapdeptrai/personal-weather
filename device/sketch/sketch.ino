@@ -1,4 +1,4 @@
-// build: 2026-11-15T00:04:03
+// build: 2026-11-15T00:18:55
 // Personal Weather: microcontroller side of the UNO Q.  Owner: Minh (M1.2, M1.3, M2.1).
 //
 // Reads Modulino Thermo (1 Hz) and Knob, drives the onboard LED matrix face and the

@@ -135,6 +135,23 @@ class TestApp(unittest.TestCase):
         self.assertIsNotNone(r.app.active.engine.active)  # "Put on a layer?" right away
         self.assertIn({"face": "suggest_layer_on"}, r.faces())
 
+    def test_putting_on_a_layer_counts_as_do_it(self):
+        # No knob at all: cold -> suggestion -> camera sees the layer -> follow-up asks.
+        r = Rig(scenario="steady", clothing="none", vision_script=[(12, {"clothing": "outer", "conf": 0.9})])
+        r.run(5)
+        p = r.app.active
+        self.assertIsNotNone(p.engine.active)                  # predicted cold -> "Put on a layer"
+        r.run(10)                                              # camera sees the layer at t=12
+        self.assertIsNotNone(p.follow_up)
+        self.assertEqual(r.app.events[-1]["by"] if r.app.events[-1]["event"] == "suggestion_response"
+                         else [e for e in r.app.events if e["event"] == "suggestion_response"][-1]["by"], "camera")
+        r.run(suggest.DEMO_WAIT_S + 1)
+        self.assertEqual(p.follow_up.state, "asking")
+        self.assertEqual(p.follow_up.action_check, suggest.CONFIRMED_CAMERA)
+        r.run(suggest.FEEDBACK_TIMEOUT_S + 2)                  # nobody answers -> unknown, no fake success
+        self.assertEqual(p.last_outcome["result"], "unknown")
+        self.assertEqual(p.experience.counts, {})
+
     def test_summaries(self):
         r = Rig(clothing="none")
         r.run(3)
