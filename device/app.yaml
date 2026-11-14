@@ -1,5 +1,5 @@
-name: Personal Weather Kickoff
-description: Hardware bring-up checks for the Personal Weather desk companion.
+name: Personal Weather
+description: Privacy-first desk comfort companion (Junction 2026). Camera images never leave the device.
 icon: "🌤️"
 ports: [8000]   # device API (api.py); stop other apps using 8000 first (e.g. vision-check)
 bricks: []

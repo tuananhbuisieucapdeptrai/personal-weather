@@ -41,28 +41,36 @@ def wait_for(predicate, timeout=5):
 
 
 class Lifecycle(unittest.TestCase):
-    def test_face_cue_skips_full_body_detector(self):
+    def test_motion_is_a_cue_without_a_face(self):
+        try:
+            import cv2
+            import numpy as np
+        except ImportError:
+            self.skipTest("OpenCV/numpy not installed on this machine")
         d = vision.DeskPresenceDetector.__new__(vision.DeskPresenceDetector)
-        d.cv2 = Mock()
-        d.face = Mock()
-        d.hog = Mock()
-        d.face.detectMultiScale.return_value = [(10, 10, 40, 40)]
-        found, cue = d.detect(SimpleNamespace(shape=(240, 320, 3)))
+        d.cv2, d.face, d.prev = cv2, None, None
+        still = np.full((480, 640, 3), 120, np.uint8)
+        self.assertFalse(d.detect(still)[0])                 # first frame: no reference yet
+        self.assertFalse(d.detect(still.copy())[0])          # nothing changed: empty chair
+        moved = still.copy()
+        moved[200:300, 250:400] = 200                        # someone shifts
+        found, cue = d.detect(moved)
         self.assertTrue(found)
-        self.assertEqual(cue['presence_cue'], 'face')
-        d.hog.detectMultiScale.assert_not_called()
+        self.assertEqual(cue['presence_cue'], 'motion')
 
-    def test_no_face_uses_body_cue_or_reports_no_detection(self):
-        d = vision.DeskPresenceDetector.__new__(vision.DeskPresenceDetector)
-        d.cv2 = Mock()
-        d.face = Mock()
-        d.hog = Mock()
-        d.face.detectMultiScale.return_value = []
-        for boxes, expected in [([(0, 0, 64, 128)], 'body'), ([], 'none')]:
-            d.hog.detectMultiScale.return_value = (boxes, [])
-            found, cue = d.detect(SimpleNamespace(shape=(240, 320, 3)))
-            self.assertEqual(found, bool(boxes))
-            self.assertEqual(cue['presence_cue'], expected)
+    def test_presence_hold(self):
+        t = [0.0]
+        p = vision.PresenceHold(clock=lambda: t[0])
+        self.assertFalse(p.update(True))            # one cue is not enough
+        t[0] += 0.5
+        self.assertTrue(p.update(True))             # second cue within 3 s -> present
+        for _ in range(118):                        # 59 s of misses while sitting still
+            t[0] += 0.5
+            self.assertTrue(p.update(False))
+        t[0] += 2.0
+        self.assertFalse(p.update(False))           # > 60 s without a cue -> absent
+        t[0] += 5.0
+        self.assertFalse(p.update(True))            # stale single cue doesn't re-enter
 
     def service(self, worker, watchdog=8):
         service = vision.VisionService(worker, watchdog)

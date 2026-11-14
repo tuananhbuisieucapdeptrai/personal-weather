@@ -20,7 +20,7 @@ Team: Tuan Anh (software) · Minh (hardware)
 | | |
 |---|---|
 | **Personal** | Two people in the same room get different predictions and different advice. A small personal offset, learned from their own feedback, corrects a standard comfort formula. |
-| **Perceptive** | The camera on the desk detects presence, and later clothing. It runs on the device, and images are processed in memory only. |
+| **Perceptive** | The camera on the desk detects presence and whether you're wearing an outer layer. A small on-device model does this, and images are processed in memory only. |
 | **Adaptive** | After a person accepts a fix, the device asks whether it helped and keeps an honest per-person record of what works ("4 helped, 1 didn't → about 71 %, high uncertainty"). |
 | **Mode-aware energy logic** | In **heating** season, a layer replaces a request for more heat, and warm people are evidence that the heating could be lowered. **Cooling** mirrors this. When the season is **unknown**, it gives comfort advice only and makes no energy claims. |
 | **Humans decide** | Suggestions are optional ("Do it / Not now / Not possible", with no penalty). Room setpoint changes need someone to click **Agree**, and the thermostat is changed by hand. |
@@ -170,7 +170,23 @@ python3 tools/eval/live_report.py --log <copy of state/feedback_log.jsonl>
 ### Vision (Minh)
 
 - **Presence:** a frontal-face cue with a HOG fallback, filtered over 3 observations. Board acceptance passed in the tested setup: leaving gave absent, returning gave present, and shutter / restart behaved correctly. Inference time: mean **264 ms**, max **454 ms** over 150 inferences. This isn't a quantitative accuracy evaluation.
-- **Clothing classifier** (held-out-session and held-out-person accuracy): ⏳ TO FILL from `docs/results.md`. Until it passes the gate, clothing is set on the dashboard, and the UI says so ("Set by hand").
+- **Clothing, what we tried and what we use:**
+  - **Trained model (Minh):** MobileNetV3-Small with a two-class head, trained on 240 consented desk photos of both of us.
+    - Offline holdout: **37/40 = 92.5 %**, reproduced on the UNO Q.
+    - **It failed a live test:** it was consistently *inverted* for one person (confident "outer" with no jacket, "none" with a jacket). It most likely learned colour and sleeve shortcuts from too little, too uniform data. **Not used.**
+  - **Used: zero-shot CLIP** (OpenAI ViT-B/32, image half only, 8-bit ONNX, 88 MB).
+    - The image is compared with fixed text descriptions ("a person wearing a jacket / coat / hoodie…" vs "…a t-shirt / shirt…"). It is **never trained on our photos**, so it can't learn their shortcuts.
+    - The "outer" cut-off was chosen on 257 desk photos, then checked once on the separate 40-photo holdout.
+
+    | Test | Outer layer found | No layer correct |
+    |---|---|---|
+    | Calibration (257 photos) | 129/137 | 119/120 (96.5 % overall) |
+    | **Holdout (40 separate photos)** | **20/20** | **20/20** |
+
+    - Speed on the UNO Q: **~540 ms** per classification, run every 1.5 s. A label changes only after 2 agreeing results.
+    - **Live test:** no jacket → "no layer" ✅. Zipped jacket → "outer layer" ✅. **Open jacket over a T-shirt → mostly "no layer" ❌**: with a chest-framed camera the T-shirt dominates the image.
+  - **Presence:** the camera faces the chest, so faces are rarely visible. Presence is **small movement or a frontal face**, held for 60 s, at ~2–60 ms per frame. It was stable in a 20-second seated test.
+- The dashboard's manual "Wearing" setting remains as a fallback.
 
 ### On the device
 
@@ -220,7 +236,7 @@ Energy is shown in three separate layers. No percentage is claimed for this devi
 
 ## Limitations and next steps
 
-- The clothing classifier isn't validated yet (⏳); the manual fallback is in place.
+- Clothing detection is validated on a small two-person photo set plus short live tests. It misses open jackets. The manual "Wearing" fallback stays.
 - Live comfort-model results (⏳) will be small-sample, from two people over one weekend.
 - No authentication on the device API.
 - Simulated coworkers stand in for a real multi-desk office. They are always labelled SIMULATED.

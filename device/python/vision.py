@@ -1,4 +1,4 @@
-"""UNO Q camera lifecycle, shutter shutdown and experimental face/HOG presence.
+"""UNO Q camera lifecycle, shutter shutdown, presence (movement or face, with hold) and clothing.
 
 Public API: start(), stop(), latest(). No capture occurs on import. Call start()
 only on explicit application/operator intent; do not call it in every main-loop
@@ -44,11 +44,48 @@ class PresenceFilter:
         return self.value
 
 
+class PresenceHold:
+    """Presence with memory (desk use): present after ENTER_HITS cues within ENTER_WINDOW_S;
+    absent only after no cue for HOLD_S (60 s: someone can sit very still). Sitting still or looking away briefly never flickers."""
+    ENTER_HITS, ENTER_WINDOW_S, HOLD_S = 2, 3.0, 60.0
+
+    def __init__(self, clock=time.monotonic):
+        self.clock = clock
+        self.value = False
+        self.hits = []
+        self.last_cue = None
+
+    def update(self, detected):
+        now = self.clock()
+        if detected:
+            self.last_cue = now
+            self.hits = [t for t in self.hits if now - t <= self.ENTER_WINDOW_S] + [now]
+            if len(self.hits) >= self.ENTER_HITS:
+                self.value = True
+        elif self.value and (self.last_cue is None or now - self.last_cue > self.HOLD_S):
+            self.value, self.hits = False, []
+        return self.value
+
+
 class DeskPresenceDetector:
-    """Visible face OR full-body HOG is a presence cue, never identity recognition."""
+    """Presence cue = small movement in the frame OR a visible frontal face. Never identity.
+
+    The desk camera is framed on the chest (for the clothing model), so faces are often out
+    of view. A seated person always moves a little (breathing, typing); an empty chair does
+    not. Movement = share of pixels that changed between consecutive small grey frames.
+    (Earlier full-body HOG and profile-face cues were removed: they rarely fire at a desk
+    and cost most of the frame time.)
+    """
+    MOTION_PIXEL_DIFF = 18       # grey levels
+    MOTION_MIN_SHARE = 0.003     # 0.3 % of pixels changed
+
     def __init__(self, cv2):
         self.cv2 = cv2
-        name = 'haarcascade_frontalface_default.xml'
+        self.face = self._load('haarcascade_frontalface_default.xml', required=False)
+        self.prev = None
+
+    def _load(self, name, required):
+        cv2 = self.cv2
         candidates = [Path(__file__).parent / 'models' / name]
         data = getattr(getattr(cv2, 'data', None), 'haarcascades', None)
         if data:
@@ -57,34 +94,39 @@ class DeskPresenceDetector:
             candidates.append(Path(cv2.__file__).parent / 'data' / name)
         candidates.extend(Path(root) / name for root in
                           ('/usr/share/opencv4/haarcascades', '/usr/share/opencv/haarcascades'))
-        self.face = None
         for path in candidates:
             if path.is_file():
                 cascade = cv2.CascadeClassifier(str(path))
                 if not cascade.empty():
-                    self.face = cascade
-                    break
-        if self.face is None:
-            raise RuntimeError('Face model missing: place haarcascade_frontalface_default.xml '
-                               'from OpenCV in python/models/ and rebuild the app')
-        self.hog = cv2.HOGDescriptor()
-        self.hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+                    return cascade
+        if required:
+            raise RuntimeError(f'Face model missing: place {name} from OpenCV in python/models/')
+        return None
+
+    def motion_share(self, frame):
+        cv2 = self.cv2
+        small = cv2.GaussianBlur(cv2.cvtColor(cv2.resize(frame, (160, 120)), cv2.COLOR_BGR2GRAY), (5, 5), 0)
+        prev, self.prev = self.prev, small
+        if prev is None:
+            return 0.0
+        changed = cv2.absdiff(small, prev) > self.MOTION_PIXEL_DIFF
+        return float(changed.mean())
 
     def detect(self, frame):
         cv2 = self.cv2
         h, w = frame.shape[:2]
         if h < 128 or w < 64:
             raise RuntimeError('Frame too small for presence detector')
-        scaled = cv2.resize(frame, (320, max(128, round(h * 320 / w))))
-        gray = cv2.equalizeHist(cv2.cvtColor(scaled, cv2.COLOR_BGR2GRAY))
-        faces = self.face.detectMultiScale(gray, scaleFactor=1.1,
-                                          minNeighbors=5, minSize=(24, 24))
-        if len(faces):
-            return True, dict(face_count=len(faces), body_count=None, presence_cue='face')
-        boxes, _ = self.hog.detectMultiScale(
-            scaled, winStride=(8, 8), padding=(8, 8), scale=1.05)
-        return bool(len(boxes)), dict(face_count=0, body_count=len(boxes),
-                                     presence_cue='body' if len(boxes) else 'none')
+        share = self.motion_share(frame)
+        if share >= self.MOTION_MIN_SHARE:
+            return True, dict(face_count=None, motion=round(share, 4), presence_cue='motion')
+        if self.face is not None:
+            gray = cv2.cvtColor(cv2.resize(frame, (320, max(128, round(h * 320 / w)))), cv2.COLOR_BGR2GRAY)
+            faces = self.face.detectMultiScale(cv2.equalizeHist(gray), scaleFactor=1.15,
+                                              minNeighbors=4, minSize=(48, 48))
+            if len(faces):
+                return True, dict(face_count=len(faces), motion=round(share, 4), presence_cue='face')
+        return False, dict(face_count=0, motion=round(share, 4), presence_cue='none')
 
 
 def _open_camera(cv2):
@@ -113,7 +155,7 @@ def _worker(send, stopping):
     cap = None
     final = unknown()
     diag = dict(phase="starting", capture_open=False, frames=0, error=None,
-                detector="OpenCV face + HOG v2 (experimental)", inference_ms=None,
+                detector="movement or frontal face, 60 s hold (v4)", inference_ms=None,
                 mean_inference_ms=None, max_inference_ms=None, inferences=0,
                 threshold=DARK_THRESHOLD, level=None, device=None)
     try:
@@ -121,17 +163,18 @@ def _worker(send, stopping):
         cv2.setNumThreads(1)
         detector = DeskPresenceDetector(cv2)
         classifier = None
+        last_clothing = ('uncertain', None)
         try:
             from clothing import ClothingClassifier
             classifier = ClothingClassifier()
-            diag['clothing_classifier'] = 'MobileNetV3 transfer; provisional threshold 0.8'
+            diag['clothing_classifier'] = classifier.backend
         except Exception as exc:
             diag['clothing_error'] = str(exc)
         cap, frame, path = _open_camera(cv2)
         diag.update(capture_open=True, device=path, phase="starting")
         send.send((unknown(), dict(diag)))
         shutter = ShutterDetector()
-        presence = PresenceFilter()
+        presence = PresenceHold()
         current = unknown()
         next_inference = next_report = total_ms = 0.0
         while not stopping.is_set():
@@ -144,17 +187,24 @@ def _worker(send, stopping):
             if now >= next_inference:
                 began = time.monotonic()
                 detected, cues = detector.detect(frame)
-                clothing, confidence = 'uncertain', None
+                present = presence.update(detected)
                 if classifier is not None:
-                    if detected:
+                    if present:                       # every frame while someone is at the desk
                         try:
-                            clothing, confidence, clothing_ms = classifier.predict(frame)
-                            diag['clothing_inference_ms'] = round(clothing_ms, 2)
+                            last_clothing = classifier.predict(frame)[:2]
+                            diag['clothing_inference_ms'] = round(classifier.last_ms, 2)
                         except Exception as exc:
                             classifier.reset()
+                            last_clothing = ('uncertain', None)
                             diag['clothing_error'] = str(exc)
-                    else:
+                    elif not present:
+                        # Only reset once the person has really gone; a single missed face
+                        # (looking away) keeps the last stable clothing label.
                         classifier.reset()
+                        last_clothing = ('uncertain', None)
+                clothing, confidence = last_clothing if present else ('uncertain', None)
+                if clothing == 'uncertain':
+                    confidence = None if not present else confidence
                 diag.update(cues)
                 elapsed = (time.monotonic() - began) * 1000
                 total_ms += elapsed
@@ -163,8 +213,7 @@ def _worker(send, stopping):
                             inference_ms=round(elapsed, 2),
                             mean_inference_ms=round(total_ms / n, 2),
                             max_inference_ms=round(max(diag["max_inference_ms"] or 0, elapsed), 2))
-                current = dict(present=presence.update(detected),
-                               clothing=clothing, conf=confidence, camera="on")
+                current = dict(present=present, clothing=clothing, conf=confidence, camera="on")
                 next_inference = time.monotonic() + 0.5
             if now >= next_report:
                 send.send((current, dict(diag)))

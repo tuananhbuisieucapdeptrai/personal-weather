@@ -16,9 +16,12 @@ import os
 import sys
 import time
 
-# Kickoff handoff: keep the board check until production startup is verified on the
-# board (T3.1, before Integration 1). Then set this to False.
-RUN_BOARD_CHECK = True
+# True runs the kickoff hardware check (board_check.py) instead of the app.
+RUN_BOARD_CHECK = False
+
+# Demo speed on the board: 30 s follow-up instead of 5 min, shown as "Sped up" (ACCELERATED).
+# Turn on:  touch state/demo   (or set PW_DEMO=1)      Turn off: rm state/demo
+DEMO_FLAG = "demo"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TICK_S = 1.0
@@ -44,8 +47,11 @@ def run_board():
         # vision.stop() can take seconds; never block the HTTP handler or the loop on it.
         threading.Thread(target=vision.start if on else vision.stop, daemon=True).start()
 
+    state_dir = os.path.join(HERE, "state")
+    demo = os.environ.get("PW_DEMO") == "1" or os.path.exists(os.path.join(state_dir, DEMO_FLAG))
     control = api.ControlState(on_camera=on_camera)
-    application = app_mod.App(bridge_io, vision, control, time.time, os.path.join(HERE, "state"))
+    application = app_mod.App(bridge_io, vision, control, time.time, state_dir, accelerated=demo)
+    print(f"Personal Weather starting: labels {application.labels}", flush=True)
     application.start()
     api.serve(control, application.get_state)
     if control.camera == "on":

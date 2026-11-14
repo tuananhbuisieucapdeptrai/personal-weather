@@ -1,0 +1,3 @@
+# Installed by App Lab into the app environment. OpenCV/numpy come from the App Lab runtime.
+# onnxruntime runs the clothing model (models/clothing.onnx); PyTorch is NOT used on the board.
+onnxruntime

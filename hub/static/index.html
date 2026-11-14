@@ -108,9 +108,14 @@ button.link { font: inherit; font-size: 13px; background: none; border: 1px soli
 
 <script>
 "use strict";
-const DEVICE = (new URLSearchParams(location.search).get("device") || "http://pw-desk.local:8000").replace(/\/$/, "");
+// Default: the hub relays the device (same origin). ?device=http://<board>:8000 talks to it directly.
+const PARAM = new URLSearchParams(location.search).get("device");
+const DEVICE = PARAM ? PARAM.replace(/\/$/, "") : "/device";
+const URL_STATE = PARAM ? DEVICE + "/state" : "/device/state";
+const URL_CONTROL = PARAM ? DEVICE + "/control" : "/device/control";
 const FEEL = { "-1": ["❄️", "A bit cold"], "0": ["🙂", "Comfortable"], "1": ["☀️", "A bit warm"] };
 const FIX = { add_layer: "Put on a layer", remove_layer: "Take off a layer" };
+const WEAR = { outer: "a layer", none: "no layer", uncertain: "not sure yet" };
 const SAVES = { replaces_heat_request: "instead of more heating", replaces_cooling_request: "instead of more cooling" };
 const LABELS = { LIVE: ["live", "Live"], "MOCK INPUT": ["demo", "Demo data"], ACCELERATED: ["fast", "Sped up"],
   SIMULATED: ["demo", "Simulated"], RECORDED: ["fast", "Recorded"] };
@@ -131,7 +136,7 @@ const range = (b) => (b ? `${f1(b[0])}–${f1(b[1])} °C` : "–");
 
 async function control(body) {
   try {
-    const r = await fetch(DEVICE + "/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const r = await fetch(URL_CONTROL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || r.status);
     render(j);
@@ -172,7 +177,9 @@ function now(s) {
   $("now").replaceChildren(
     h("div", { class: "now" }, h("div", { class: `icon c${e.personal_class}` }, icon),
       h("div", {}, h("div", { class: "who" }, p.display), h("div", { class: `feel c${e.personal_class}` }, feel),
-        h("div", { class: "meta" }, h("b", {}, `${f1(s.env.t)} °C`), ` · ${Math.round(s.env.rh)} % · comfort ${range(e.band)}`))),
+        h("div", { class: "meta" }, h("b", {}, `${f1(s.env.t)} °C`), ` · ${Math.round(s.env.rh)} % · comfort ${range(e.band)}`),
+        h("div", { class: "meta" }, "Wearing: ", h("b", {}, WEAR[s.clothing.value] || s.clothing.value),
+          s.clothing.source === "manual" ? " (set by hand)" : ` (camera${s.vision.conf != null ? `, ${Math.round(s.vision.conf * 100)}%` : ""})`))),
     action);
 }
 
@@ -225,6 +232,9 @@ function tech(s) {
       ...rows.map(([k, f]) => h("tr", {}, h("th", {}, k), ...people.map((p) => h("td", {}, String(f(p))))))),
     h("p", { class: "small muted" }, `PMV (ISO 7730), assumed: radiant = air, ${a.air_speed_m_s} m/s, ${a.metabolic_rate_met} met, clo ${Object.entries(a.clothing_clo).map(([k, v]) => `${k} ${v}`).join("/")}. ` +
       `Raw ${f1(s.env.raw_t)} °C. Hub ${s.hub.url || "not configured"}. Stored on device: ${s.privacy_receipt.stored_on_device.join(", ")}.`),
+    s.vision_diag ? h("p", { class: "small muted" }, `Camera: ${s.vision_diag.detector || ""} · cue ${s.vision_diag.presence_cue || "–"} · ` +
+      `inference ${s.vision_diag.inference_ms ?? "–"} ms (clothing ${s.vision_diag.clothing_inference_ms ?? "–"} ms) · ` +
+      `${s.vision_diag.clothing_classifier || s.vision_diag.clothing_error || "no clothing model"}`) : null,
     h("button", { class: "link", onclick: () => { if (confirm("Give this person a new anonymous ID?")) control({ reset_pid: true }); } }, "New anonymous ID"),
     h("pre", {}, s.events.slice(-12).reverse().map((e) => `${Math.round(e.at - s.time)}s ${e.event}`).join("\n")));
 }
@@ -236,7 +246,7 @@ let fails = 0;
 (async function poll() {
   try {
     const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 2500);
-    const s = await (await fetch(DEVICE + "/state", { signal: ac.signal })).json(); clearTimeout(t);
+    const s = await (await fetch(URL_STATE, { signal: ac.signal })).json(); clearTimeout(t);
     fails = 0; banner(""); render(s);
   } catch (e) {
     if (++fails >= 2) { $("chips").replaceChildren(h("span", { class: "chip bad" }, "device offline")); banner(`Can't reach ${DEVICE}`); }

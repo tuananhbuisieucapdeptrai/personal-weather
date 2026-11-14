@@ -37,3 +37,7 @@ venv/
 .DS_Store
 .vscode/
 .idea/
+
+# Zero-shot CLIP image model (88 MB): recreate with tools/eval/export_clip_zeroshot.py
+device/python/models/clip_image.onnx
+device/python/models/clip_image_fp32.onnx

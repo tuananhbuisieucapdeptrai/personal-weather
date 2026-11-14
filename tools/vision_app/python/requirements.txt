@@ -1,4 +1,3 @@
 # Uses cv2 supplied by the Arduino App Lab runtime.
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.15.0+cpu
-Pillow
+# Clothing model runs with onnxruntime (models/clothing.onnx); PyTorch fails to import on the UNO Q.
+onnxruntime

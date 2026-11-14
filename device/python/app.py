@@ -357,6 +357,7 @@ class App:
             return {
                 "debug": True, "inputs": self.inputs, "labels": self.labels, "time": now,
                 "env": self.env.reading(now), "vision": self.vision_now,
+                "vision_diag": (self.vision.diagnostics() if hasattr(self.vision, "diagnostics") else None),
                 "presence": {"present": self.presence[0], "source": self.presence[1]},
                 "clothing": {"value": self.clothing[0], "source": self.clothing[1],
                              "label": "CLOTHING: SET MANUALLY" if self.clothing[1] == "manual" else None},

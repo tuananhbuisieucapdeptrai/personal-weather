@@ -4,6 +4,7 @@
     POST   /summary          C8 summary from a device -> 204 (400 if it breaks the contract)
     GET    /summaries        every known person: summary + receipt age + stale/effective presence
     DELETE /summaries/<pid>  remove one entry (e.g. a synthetic test summary)
+    GET    /device/state     relay to the desk device (POST /device/control too); --device URL
     GET    /ping             liveness check (used by tools/net/laptop_check.sh)
     GET    /room             room view page;  GET /room.json  its data (A1 + A2)
     POST   /room/agree       {"setpoint": x}  agree to the CURRENT recommendation (nothing else)
@@ -24,6 +25,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import urllib.error
+import urllib.request
 import os
 import sys
 import threading
@@ -35,6 +38,7 @@ import contracts  # noqa: E402  (shared contract checks)
 import room as room_mod  # noqa: E402  (A1 recommendation, A2 simulated coworkers)
 
 STALE_AFTER_S = 120
+DEVICE_URL = os.environ.get("PW_DEVICE_URL", "http://pw-desk.local:8000")   # --device overrides
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 PAGES = {"/": "index.html", "/dashboard": "index.html", "/room": "room.html"}
 
@@ -117,6 +121,8 @@ def make_handler(store: SummaryStore, room: "room_mod.Room | None" = None):
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
                 self.wfile.write(body)
+            elif path == "/device/state":
+                self._relay("GET", "/state")
             elif path == "/room.json":
                 people = store.view()
                 self._send(200, room.view(people, room_mode(people)))
@@ -131,6 +137,9 @@ def make_handler(store: SummaryStore, room: "room_mod.Room | None" = None):
             path = self.path.split("?")[0]
             if path.startswith("/room/"):
                 return self._room_post(path)
+            if path == "/device/control":
+                length = int(self.headers.get("Content-Length") or 0)
+                return self._relay("POST", "/control", self.rfile.read(length))
             if path != "/summary":
                 return self._send(404, {"error": "not found"})
             try:
@@ -144,6 +153,23 @@ def make_handler(store: SummaryStore, room: "room_mod.Room | None" = None):
             print(f"[hub] {time.strftime('%H:%M:%S')} summary from {self.client_address[0]}: "
                   f"{json.dumps(msg)}", flush=True)
             self._send(204)
+
+        def _relay(self, method, path, body=None):
+            """Same-origin relay to the desk device's local API (dashboard needs no CORS/mDNS)."""
+            req = urllib.request.Request(DEVICE_URL + path, data=body, method=method,
+                                         headers={"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=3) as r:
+                    data, code = r.read(), r.status
+            except urllib.error.HTTPError as e:
+                data, code = e.read(), e.code
+            except OSError as e:
+                return self._send(502, {"error": f"device {DEVICE_URL} unreachable: {e}"})
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
 
         def _room_post(self, path):
             try:
@@ -187,8 +213,11 @@ def main():
     ap.add_argument("--host", default="0.0.0.0")
     ap.add_argument("--port", type=int, default=8080)
     ap.add_argument("--demo", action="store_true", help="re-check after 60 s instead of 90 min (ACCELERATED)")
+    ap.add_argument("--device", default=None, help="desk device API, e.g. http://192.168.0.85:8000")
     ap.add_argument("--setpoint", type=float, default=room_mod.DEFAULT_SETPOINT, help="current thermostat setting")
     args = ap.parse_args()
+    global DEVICE_URL
+    DEVICE_URL = (args.device or DEVICE_URL).rstrip("/")
     serve(SummaryStore(), args.host, args.port, room_mod.Room(time.time, demo=args.demo, setpoint=args.setpoint))
     print(f"[hub] listening on {args.host}:{args.port}  (dashboard /, room /room, POST /summary)", flush=True)
     try:
