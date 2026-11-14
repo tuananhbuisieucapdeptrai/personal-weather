@@ -105,7 +105,7 @@ class App:
         # shown repeatedly. Office values: 15 min between suggestions, 5 min quiet, 4 h block.
         self.quiet_after_ok_s = 20 if accelerated else QUIET_AFTER_OK_S
         if accelerated:
-            suggest.MIN_GAP_S = 60
+            suggest.MIN_GAP_S = 12
             suggest.NOT_POSSIBLE_HOLD_S = 120
         self.state_dir = state_dir
         self._profiles_path = os.path.join(state_dir, "profiles.json")
