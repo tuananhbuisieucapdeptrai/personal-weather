@@ -37,6 +37,8 @@ FEEDBACK_IDLE_S = 20          # an unconfirmed feedback turn is abandoned after 
 HOLD_AFTER_CONFIRM_S = 2      # keep the check mark visible
 EYE_OFF_HOLD_S = 5
 PRESENCE_FALLBACK_S = 30 * 60
+QUIET_AFTER_OK_S = 5 * 60
+REPORT_VALID_S = 10 * 60      # "I'm cold" right now beats the model's prediction for 10 min     # after an "OK" vote, no suggestion pops up and steals the knob
 SUMMARY_HEARTBEAT_S = 60
 
 
@@ -48,6 +50,8 @@ class Profile:
         self.experience = suggest.FixExperience()
         self.follow_up: suggest.FollowUp | None = None
         self.last_outcome: dict | None = None
+        self.quiet_until = 0.0
+        self.reported: tuple[int, float] | None = None     # (vote, at) from the knob
         self.decision: dict | None = None
         self.estimate: dict | None = None
 
@@ -197,6 +201,10 @@ class App:
         else:
             if self.feedback_picker is None:
                 self.feedback_picker, self.feedback_since = suggest.FeedbackPicker(), now
+                # Ordinary "how do you feel" vote: the knob rests on OK, so a single press
+                # without turning means OK (people press once). Bump protection stays for
+                # suggestion answers and the "did it help?" follow-up.
+                self.feedback_picker.previewed = True
             kind, picker = "feedback", self.feedback_picker
         if msg["knob"] == "turn":
             self._send(picker.on_turn(msg["pos"]))
@@ -225,6 +233,7 @@ class App:
                 self._event("follow_up_vote_ignored", reason="no fresh temperature")
                 return
             out = fu.complete(now, answer, env["t"], env["rh"], self.clothing[0], p.model, p.experience)
+            p.reported = (answer, now)
             self.log.append(p.name, out["comfort_record"], "follow_up", now, self.labels, self.clothing[0])
             self._finish_follow_up(p, out)
 
@@ -235,6 +244,9 @@ class App:
             return
         rec = p.model.observe(vote, comfort.baseline_pmv(env["t"], env["rh"], self.clothing[0]))
         self.log.append(p.name, rec, "feedback", now, self.labels, self.clothing[0])
+        p.reported = (vote, now)
+        if vote == comfort.OK:
+            p.quiet_until = now + QUIET_AFTER_OK_S
         self._event("feedback", profile=p.name, vote=vote, offset=rec["offset_after"])
         self._save()
 
@@ -281,10 +293,16 @@ class App:
             clothing = self.clothing[0] if is_active else "uncertain"
             present = self.presence[0] if is_active else False
             p.estimate = comfort.estimate(env["t"], env["rh"], clothing, p.model)
+            reported = (p.reported[0] if p.reported and now - p.reported[1] < REPORT_VALID_S
+                        and is_active else None)
+            if reported is not None:              # interfaces.md: a fresh knob report overrides
+                p.estimate["model_class"] = p.estimate["personal_class"]
+                p.estimate["personal_class"] = reported
+                p.estimate["from_report"] = True
             p.decision = p.engine.evaluate(
                 now, env["t"], env["rh"], clothing, p.model, self.control.mode, present=present,
-                follow_up_pending=bool(p.follow_up), env_stale=False)
-            busy = (self.feedback_picker is not None or now < self.hold_until
+                follow_up_pending=bool(p.follow_up), env_stale=False, reported_class=reported)
+            busy = (self.feedback_picker is not None or now < self.hold_until or now < p.quiet_until
                     or (p.follow_up is not None and p.follow_up.state == "asking"))
             if is_active and p.decision["offer"] and not busy:
                 self._send(p.engine.offer(now, p.decision["offer"]))

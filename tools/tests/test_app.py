@@ -110,14 +110,30 @@ class TestApp(unittest.TestCase):
         self.assertNotEqual(comfort.classify(ta.predict(comfort.baseline_pmv(t, rh, "none"))),
                             comfort.classify(mi.predict(comfort.baseline_pmv(t, rh, "none"))))
 
-    def test_bump_in_idle_records_nothing(self):
+    def test_single_press_in_idle_votes_ok(self):
         r = Rig(clothing="outer")                    # comfortable: no suggestion
         r.run(3)
-        r.knob("p")
-        self.assertEqual(r.app.log.report()["n"], 0)
-        self.assertEqual(r.faces()[-1], {"face": "feedback", "pos": 0})
-        r.run(app.FEEDBACK_IDLE_S + 2)               # abandoned -> back to comfort face
+        r.knob("p")                                  # one press, no turn = "OK"
+        self.assertEqual(r.app.log.report()["n"], 1)
+        self.assertEqual(r.app.log.entries()[-1]["vote"], 0)
+        self.assertIn({"face": "check"}, r.faces())
+        r.knob(1)                                    # a turn without a press is abandoned
+        r.run(app.FEEDBACK_IDLE_S + 2)
+        self.assertEqual(r.app.log.report()["n"], 1)
         self.assertEqual(r.app.last_face, {"face": "smile"})
+
+    def test_cold_vote_triggers_layer_suggestion_now(self):
+        r = Rig(scenario="steady", clothing="none")       # 21.5 degC, model starts at 0 offset
+        r.control.apply({"clothing": "none"})
+        r.app.profiles["tuananh"].model.offset = 0.6      # model thinks this person is fine
+        r.run(3)
+        self.assertIsNone(r.app.active.engine.active)
+        r.knob(-1, "p")                                   # "I'm cold"
+        r.run(3)
+        self.assertEqual(r.app.active.estimate["personal_class"], -1)
+        self.assertTrue(r.app.active.estimate.get("from_report"))
+        self.assertIsNotNone(r.app.active.engine.active)  # "Put on a layer?" right away
+        self.assertIn({"face": "suggest_layer_on"}, r.faces())
 
     def test_summaries(self):
         r = Rig(clothing="none")

@@ -98,11 +98,13 @@ class SuggestionEngine:
     # ---- decide ----
     def evaluate(self, now: float, t: float, rh: float, clothing: str, model: comfort.PersonalModel,
                  mode: str, present: bool = True, env_stale: bool = False,
-                 follow_up_pending: bool = False) -> dict:
-        """Decide whether to offer a fix now. Pure: nothing changes until offer()."""
+                 follow_up_pending: bool = False, reported_class: int | None = None) -> dict:
+        """Decide whether to offer a fix now. Pure: nothing changes until offer().
+        reported_class: a fresh knob report (-1/0/+1) overrides the model's prediction."""
         self.expire(now)
         known = clothing in ("outer", "none")
-        pcls = comfort.classify(model.predict(comfort.baseline_pmv(t, rh, clothing)))
+        pcls = (reported_class if reported_class is not None
+                else comfort.classify(model.predict(comfort.baseline_pmv(t, rh, clothing))))
         fix = fix_for(clothing, pcls) if known else None
         fix_ok = (fix is not None and comfort.classify(
             model.predict(comfort.baseline_pmv(t, rh, FIXES[fix]["to"]))) == OK)
