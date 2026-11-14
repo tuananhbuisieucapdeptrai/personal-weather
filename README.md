@@ -126,7 +126,7 @@ Each module also has a self-test, e.g. `python3 device/python/comfort.py`.
 - **The hub sees the device's local network address.**
 - **The device API is unauthenticated and meant for a trusted local network only.** It is labelled "local · debug". Anyone on the same network could read the desk view or change its settings. A shared token is future work.
 - **Camera off is enforced twice:**
-  - The **physical shutter** is the real guarantee. After about 3 s of dark frames, the software releases the camera and reports `shutter`.
+  - The **physical shutter** is the real guarantee. After about 3 s of dark frames, the software releases the camera and reports `shutter`. The darkness threshold is 20/255: a closed shutter reads 0.7, the room ~145. It was lowered from 72 after a dark jacket close to the lens falsely triggered it.
   - Capture resumes only after an explicit "camera on".
   - It doesn't watch for the shutter reopening, because that would require capturing frames while it's closed.
 - **Training images** for the clothing classifier are collected only in a separate session, from people who consented, and are deleted after the event. They are never in this repository (`.gitignore` blocks images).

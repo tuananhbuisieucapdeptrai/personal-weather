@@ -12,7 +12,9 @@ from __future__ import annotations
 
 # Calibrated 2026-11-14 on Minh's USB camera; see docs/kickoff-remaining-results.md.
 # Recalibrate if the camera or darkest expected lighting changes.
-DARK_THRESHOLD = 72.77737196180556
+# Lowered from 72.8 to 20 (2026-11-15): a dark jacket filling the frame read below 72 and
+# falsely tripped 'shutter'. Measured: shutter closed 0.72, hand over lens 0.89, room ~145.
+DARK_THRESHOLD = 20.0
 HOLD_SECONDS = 3.0
 
 
