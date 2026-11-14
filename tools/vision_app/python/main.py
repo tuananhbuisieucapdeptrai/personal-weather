@@ -7,8 +7,8 @@ import vision
 
 PAGE = b'''<!doctype html><meta charset="utf-8"><title>Personal Weather vision check</title>
 <style>body{font:17px system-ui;max-width:900px;margin:30px auto;padding:20px}button{padding:12px;margin:5px}pre{background:#edf2f6;padding:20px;white-space:pre-wrap}.note{background:#fff0cf;padding:16px}</style>
-<h1>Production vision module check v2</h1>
-<p>LIVE camera measurements. Experimental person detector. Clothing classifier not installed.</p>
+<h1>Personal Weather clothing check v3</h1>
+<p>LIVE camera measurements. Experimental presence and clothing classification. Clothing confidence is uncalibrated; live acceptance is required.</p>
 <p class="note">No images are saved or served. Visible-face detection plus a full-body fallback provides experimental presence cues, not identity recognition. Looking away or occlusion can still cause misses. Check face_count and presence_cue below. Accuracy is not yet validated.</p>
 <button onclick='control({camera:"on"})'>Camera on</button>
 <button onclick='control({camera:"off"})'>Camera off</button>
@@ -34,10 +34,10 @@ def main():
         state = vision.latest()
         contracts.check_vision(state)
         clothing, source = control.effective_clothing(state['clothing'])
-        return dict(vision=state, diagnostics=vision.diagnostics(),
+        return dict(build='clothing-v3', vision=state, diagnostics=vision.diagnostics(),
                     control=control.snapshot(), effective_clothing=clothing,
                     clothing_source=source, presence_validated=False,
-                    clothing_classifier='not installed', inputs='live')
+                    clothing_classifier=vision.diagnostics().get('clothing_classifier', 'unavailable or camera off'), inputs='live')
 
     class Handler(api._make_handler(control, snapshot)):
         def do_GET(self):

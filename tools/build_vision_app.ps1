@@ -8,11 +8,11 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'python') | Out-Null
 foreach ($file in @('main.py','requirements.txt')) {
     Copy-Item -LiteralPath (Join-Path $repoRoot "tools/vision_app/python/$file") -Destination (Join-Path $stage 'python')
 }
-foreach ($module in @('vision.py','shutter.py','contracts.py','api.py')) {
+foreach ($module in @('vision.py','clothing.py','shutter.py','contracts.py','api.py')) {
     Copy-Item -LiteralPath (Join-Path $repoRoot "device/python/$module") -Destination (Join-Path $stage 'python')
 }
 $archive = Join-Path $repoRoot 'vision-check.zip'
-if (Test-Path (Join-Path $repoRoot 'device/python/models/haarcascade_frontalface_default.xml')) {
+if (Test-Path (Join-Path $repoRoot 'device/python/models')) {
     Copy-Item -LiteralPath (Join-Path $repoRoot 'device/python/models') -Destination (Join-Path $stage 'python') -Recurse
 }
 Compress-Archive -Path (Join-Path $stage 'app.yaml'),(Join-Path $stage 'python') -DestinationPath $archive -Force

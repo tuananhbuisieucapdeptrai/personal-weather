@@ -95,8 +95,8 @@ def _open_camera(cv2):
     for path in paths:
         cap = cv2.VideoCapture(path, cv2.CAP_V4L2)
         try:
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             ok, frame = cap.read() if cap.isOpened() else (False, None)
             if ok:
@@ -120,6 +120,13 @@ def _worker(send, stopping):
         import cv2
         cv2.setNumThreads(1)
         detector = DeskPresenceDetector(cv2)
+        classifier = None
+        try:
+            from clothing import ClothingClassifier
+            classifier = ClothingClassifier()
+            diag['clothing_classifier'] = 'MobileNetV3 transfer; provisional threshold 0.8'
+        except Exception as exc:
+            diag['clothing_error'] = str(exc)
         cap, frame, path = _open_camera(cv2)
         diag.update(capture_open=True, device=path, phase="starting")
         send.send((unknown(), dict(diag)))
@@ -137,6 +144,17 @@ def _worker(send, stopping):
             if now >= next_inference:
                 began = time.monotonic()
                 detected, cues = detector.detect(frame)
+                clothing, confidence = 'uncertain', None
+                if classifier is not None:
+                    if detected:
+                        try:
+                            clothing, confidence, clothing_ms = classifier.predict(frame)
+                            diag['clothing_inference_ms'] = round(clothing_ms, 2)
+                        except Exception as exc:
+                            classifier.reset()
+                            diag['clothing_error'] = str(exc)
+                    else:
+                        classifier.reset()
                 diag.update(cues)
                 elapsed = (time.monotonic() - began) * 1000
                 total_ms += elapsed
@@ -146,7 +164,7 @@ def _worker(send, stopping):
                             mean_inference_ms=round(total_ms / n, 2),
                             max_inference_ms=round(max(diag["max_inference_ms"] or 0, elapsed), 2))
                 current = dict(present=presence.update(detected),
-                               clothing="uncertain", conf=None, camera="on")
+                               clothing=clothing, conf=confidence, camera="on")
                 next_inference = time.monotonic() + 0.5
             if now >= next_report:
                 send.send((current, dict(diag)))

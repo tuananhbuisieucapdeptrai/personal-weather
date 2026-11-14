@@ -1,4 +1,4 @@
-name: Personal Weather Vision Check
+name: Personal Weather Clothing Check v3
 description: Production camera lifecycle and experimental presence acceptance. No image storage or streaming.
 ports: [8000]
 bricks: []
