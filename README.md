@@ -26,6 +26,15 @@ Team: Tuan Anh (software) · Minh (hardware)
 | **Humans decide** | Suggestions are optional ("Do it / Not now / Not possible", with no penalty). Room setpoint changes need someone to click **Agree**, and the thermostat is changed by hand. |
 | **Discomfort stays visible** | People who stay uncomfortable with no free fix appear as a bar that doesn't disappear, and they weigh more in the room recommendation. |
 
+**Works automatically.**
+- Comfort is predicted from measured temperature and humidity plus the clothing the camera sees.
+- The knob is an **optional** one-click correction ("I'm cold") that takes effect at once and personalises the model over time.
+- Putting on the suggested layer counts as accepting the suggestion; no button needed.
+
+**Deliberately no emotion recognition.**
+- The camera only checks *presence* and *outer layer vs none*.
+- Inferring emotions of people at work is prohibited by the EU AI Act (Art. 5(1)(f)), and facial expression is weak evidence of thermal comfort anyway.
+
 ## How it works
 
 ```
@@ -234,13 +243,34 @@ Energy is shown in three separate layers. No percentage is claimed for this devi
 | **Proposed** | The recommended setpoint, which needs agreement. The thermostat itself isn't verified. |
 | **Modelled** | Research context only. Building simulations suggest wider acceptable setpoint ranges can reduce HVAC energy, with the size depending on climate and building: Hoyt, Arens & Zhang (2015), *Building and Environment* 88:89–96, doi:10.1016/j.buildenv.2014.09.010 |
 
+## Compared with existing solutions
+
+| Kind of product | Examples | What it does | Where Personal Weather differs |
+|---|---|---|---|
+| Smart thermostats | Google Nest, ecobee (with room sensors) | Learn schedules and occupancy, adjust the HVAC | They optimise the **building's** temperature; we predict **each person's** comfort, including what they wear |
+| Occupant comfort apps | Comfy (Siemens) and similar "warmer / cooler" apps | People report discomfort; the building system changes the zone | They answer discomfort **with HVAC energy**; we offer a **free fix first**, and work with an **ordinary thermostat**, with no building-system integration |
+| Personal comfort devices | Desk fans and heaters, heated chairs, wearables | Change one person's micro-climate | They use energy or must be worn, and don't help a room agree on a setpoint |
+| Research | UC Berkeley CBE personal comfort models | Per-person comfort prediction | We run it on a low-cost edge device, with on-device vision and a closed suggest → act → check loop |
+
+**What's distinctive:**
+- a free fix before energy, with season-aware energy logic;
+- a personal, adaptive model that also checks whether fixes helped;
+- vision on the device, with only an anonymous summary leaving the desk and a physical shutter;
+- no cloud;
+- unresolved discomfort stays visible;
+- honest three-layer energy claims.
+
 ## Limitations and next steps
 
 - Clothing detection is validated on a small two-person photo set plus short live tests. It misses open jackets. The manual "Wearing" fallback stays.
 - Live comfort-model results (⏳) will be small-sample, from two people over one weekend.
 - No authentication on the device API.
 - Simulated coworkers stand in for a real multi-desk office. They are always labelled SIMULATED.
+- One air sensor per desk: drafts, sun and radiators aren't measured. Only two fixes so far (add or remove a layer).
 - Future work:
+  - opt-in, on-device **posture cues** of thermal discomfort (arms crossed, rubbing hands), never emotions
+  - a larger fix menu (move away from the window, close the blinds) with extra sensors
+  - a multi-room / **smart-building view**
   - a multi-feature personal model (X1), kept only if it beats the offset prospectively
   - several real desks
   - thermostat integration, still with human agreement

@@ -29,6 +29,12 @@ A privacy-first Edge AI desk companion that learns how *you* feel in a shared ro
 - **It suggests free fixes.** "Put on a layer?" appears on the LED face. You answer with the knob: *Do it*, *Not now* or *Not possible*, with no penalty. A few minutes later it asks whether it helped, and keeps an honest record of what works for you.
 - **It respects the season.** In heating mode, a layer replaces a request for more heat, and warm people show the heating could go down. In cooling mode it's the reverse. If the season is unknown, it makes no energy claims.
 
+**Automatic, and respectful.**
+- It predicts comfort on its own from temperature, humidity and what you're wearing.
+- One optional knob click ("I'm cold") corrects it and teaches it about you.
+- Putting on the suggested layer is enough; the camera sees it.
+- We deliberately do **no emotion recognition**: the EU AI Act prohibits it at work.
+
 **Room level.** Each desk sends only a pseudonymous comfort summary to a hub on the room's laptop: an anonymous ID, whether someone is there, a comfort range, and whether they're uncomfortable. The hub then:
 - recommends the **lowest heating setpoint that suits everyone present**, counting the free fixes each person can actually make;
 - keeps anyone with **unresolved discomfort visible**, instead of averaging them away;
@@ -48,6 +54,12 @@ A privacy-first Edge AI desk companion that learns how *you* feel in a shared ro
 - In simulation, the personal offset raised 3-class accuracy from 0.48 to **0.73** for someone who runs cold, and from 0.46 to **0.66** for someone who runs warm. It cost a little for an average person (0.75 → 0.73), and we report that too.
 - Live results from our own feedback: ⏳.
 - On-device clothing detection: our first trained model scored 92.5 % on held-out photos, but **failed live** (it learned colour and sleeve shortcuts). We replaced it with **zero-shot CLIP**: no training on our photos, **40/40 on the held-out set**, about 0.5 s per check on the UNO Q. It still misses open jackets, and we say so.
+
+**Compared with what exists.**
+- Smart thermostats optimise the building, not the person.
+- Comfort apps answer "I'm cold" by spending HVAC energy and need building-system integration.
+- Personal heaters and fans use energy too.
+- Personal Weather offers a **free fix first**, learns each person, keeps images on the device, and works with an ordinary thermostat.
 
 **Why it matters for a greener Europe.** The cheapest kilowatt-hour is a jacket. Personal Weather turns "I'm cold" into a free, optional fix first, and into a fairer, lower setpoint the whole room agrees on. It works in ordinary offices with an ordinary thermostat, with no cloud and no big-tech platform.
 

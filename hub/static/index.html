@@ -176,7 +176,8 @@ function now(s) {
   }
   $("now").replaceChildren(
     h("div", { class: "now" }, h("div", { class: `icon c${e.personal_class}` }, icon),
-      h("div", {}, h("div", { class: "who" }, p.display), h("div", { class: `feel c${e.personal_class}` }, feel),
+      h("div", {}, h("div", { class: "who" }, p.display, e.from_report ? " · you said so (counts for 10 min)" : " · predicted"),
+        h("div", { class: `feel c${e.personal_class}` }, feel),
         h("div", { class: "meta" }, h("b", {}, `${f1(s.env.t)} °C`), ` · ${Math.round(s.env.rh)} % · comfort ${range(e.band)}`),
         h("div", { class: "meta" }, "Wearing: ", h("b", {}, WEAR[s.clothing.value] || s.clothing.value),
           s.clothing.source === "manual" ? " (set by hand)" : ` (camera${s.vision.conf != null ? `, ${Math.round(s.vision.conf * 100)}%` : ""})`))),
