@@ -1,0 +1,5 @@
+name: Personal Weather Kickoff
+description: Hardware bring-up checks for the Personal Weather desk companion.
+icon: "🌤️"
+ports: []
+bricks: []

@@ -25,7 +25,7 @@ STEP_SECONDS = 10
 
 _q: queue.Queue = queue.Queue()
 _lock = threading.Lock()
-_dbg = {"ack": None, "hw": None, "raw": []}
+_dbg = {"ack": None, "hw": None, "raw": [], "config": None}
 _results: list[tuple[str, str, str]] = []
 
 
@@ -43,6 +43,11 @@ def _on_hw(thermo, knob, buzzer):
 def _on_raw(prev, new):
     with _lock:
         _dbg["raw"].append((int(prev), int(new)))
+
+
+def _on_config(counts, direction):
+    with _lock:
+        _dbg["config"] = (int(counts), int(direction))
 
 
 # ---- Helpers -------------------------------------------------------------------
@@ -152,9 +157,11 @@ def check_knob_calibration():
         record("knob calibration", "FAIL", "raw value went back to where it started; try again")
         return False
     counts, direction = abs(total), (1 if total > 0 else -1)
-    ok = counts == 1 and direction == 1
+    with _lock:
+        configured = _dbg["config"]
+    ok = configured == (counts, direction)
     record("knob calibration", "PASS" if ok else "FAIL",
-           f"one click = {counts} count(s), clockwise is {'+' if direction > 0 else '-'}")
+           f"one click = {counts} count(s), clockwise is {'+' if direction > 0 else '-'}; sketch config={configured}")
     if not ok:
         say(f"    -> In sketch.ino set: #define COUNTS_PER_DETENT {counts}"
             f"  and  #define KNOB_DIRECTION {direction}, upload again, rerun this check.")
@@ -195,14 +202,21 @@ def summary():
     say("\n================ BOARD CHECK SUMMARY ================")
     for name, status, _ in _results:
         say(f"  {status:5} {name}")
-    say("  RESULT:", "ALL PASS" if not fails else f"{len(fails)} FAIL(S): fix and rerun")
+    incomplete = [r for r in _results if r[1] in ("WARN", "SKIP")]
+    say("  RESULT:", f"{len(fails)} FAIL(S): fix and rerun" if fails else
+        "REVIEW WARN/SKIP results" if incomplete else "AUTOMATED CHECKS PASS; manual checks still required")
     say("  If all pass: set DEBUG_KNOB_RAW 0 in sketch.ino and tick items 1-3 in docs/interfaces.md.")
     say("======================================================\n")
 
 
 def run():
+    _results.clear()
+    flush()
+    with _lock:
+        _dbg.update(ack=None, hw=None, config=None)
     bridge_io.start(_q.put, extra_handlers={
-        "face_ack": _on_ack, "hw_status": _on_hw, "knob_raw": _on_raw})
+        "face_ack": _on_ack, "hw_status": _on_hw, "knob_raw": _on_raw,
+        "knob_config": _on_config})
     say("Personal Weather board check starting. Keep this console visible.")
     hw_ok = check_hardware()
     check_env()

@@ -38,6 +38,7 @@ bool thermoOk = false, knobOk = false, buzzerOk = false;
 
 // ---- Knob state ----------------------------------------------------------------
 int  lastRaw = 0;
+int  lastObservedRaw = 0;           // independent of detent accumulation
 int  pos = 0;                       // clamped to -1 / 0 / +1
 bool wasPressed = false;
 unsigned long lastPressMs = 0;
@@ -71,11 +72,11 @@ void playClick() {
 
 void setup() {
   Bridge.begin();                   // blocks until the Linux side is up
-  Modulino.begin();                 // if modules are not found on UNO Q, try Modulino.begin(Wire1)
+  Modulino.begin(Wire1);            // UNO Q Qwiic connector uses the secondary I2C bus
   thermoOk = thermo.begin();
   knobOk   = knob.begin();
   buzzerOk = buzzer.begin();
-  if (knobOk) lastRaw = knob.get();
+  if (knobOk) lastObservedRaw = lastRaw = knob.get();
 
   Bridge.provide_safe("face", onFace);
   Bridge.provide_safe("face_feedback", onFaceFeedback);
@@ -98,6 +99,9 @@ void loop() {                       // no delay() anywhere
     }
     // Health beacon for board_check.py: which modules answered at startup.
     Bridge.notify("hw_status", (int)thermoOk, (int)knobOk, (int)buzzerOk);
+#if DEBUG_KNOB_RAW
+    Bridge.notify("knob_config", COUNTS_PER_DETENT, KNOB_DIRECTION);
+#endif
   }
 
   // --- Knob turn: clamp to -1..+1, send only on change, click on every detent ---
@@ -105,8 +109,9 @@ void loop() {                       // no delay() anywhere
     int raw = knob.get();
     int diff = raw - lastRaw;
 #if DEBUG_KNOB_RAW
-    if (diff != 0) Bridge.notify("knob_raw", lastRaw, raw);   // (previous, new)
+    if (raw != lastObservedRaw) Bridge.notify("knob_raw", lastObservedRaw, raw);
 #endif
+    lastObservedRaw = raw;
     int steps = diff / COUNTS_PER_DETENT;
     if (steps != 0) {
       lastRaw += steps * COUNTS_PER_DETENT;

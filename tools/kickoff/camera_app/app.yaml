@@ -1,0 +1,4 @@
+name: Personal Weather Camera Check
+description: Local shutter calibration and capture-release checks. No images are stored or served.
+ports: [8000]
+bricks: []

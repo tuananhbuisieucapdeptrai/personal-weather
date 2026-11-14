@@ -10,7 +10,9 @@ Set DARK_THRESHOLD from tools/kickoff/shutter_calibrate.py.
 """
 from __future__ import annotations
 
-DARK_THRESHOLD = 12.0   # mean grey level 0..255; REPLACE with the calibrated value
+# Calibrated 2026-11-14 on Minh's USB camera; see docs/kickoff-remaining-results.md.
+# Recalibrate if the camera or darkest expected lighting changes.
+DARK_THRESHOLD = 72.77737196180556
 HOLD_SECONDS = 3.0
 
 

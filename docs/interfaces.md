@@ -8,14 +8,14 @@ Implementation plan section 0 (Saturday 08:00–08:45, Tuan Anh + Minh). The exe
 
 Draft defaults written by Tuan Anh. Minh confirms or changes each one, then tick it.
 
-- [ ] **Bridge mapping** (section 0.2.1). Minh checks it with the round-trip test in `docs/kickoff-guide.md` at M1.1.
-- [ ] **Knob**: the sketch clamps the position to −1/0/+1 and resets it to 0 after every press; the click sound is played locally by the sketch.
-- [ ] **Response mapping**: +1 = DO, 0 = LATER, −1 = NO. Every interaction starts at 0, so an accidental press means "Not now", which carries no penalty.
+- [x] **Bridge mapping** (section 0.2.1). Minh checks it with the round-trip test in `docs/kickoff-guide.md` at M1.1.
+- [x] **Knob**: the sketch clamps the position to −1/0/+1 and resets it to 0 after every press; the click sound is played locally by the sketch.
+- [x] **Response mapping**: +1 = DO, 0 = LATER, −1 = NO. Every interaction starts at 0, so an accidental press means "Not now", which carries no penalty.
 - [ ] **Smoothing** happens in Python. The sketch sends raw values once per second.
 - [ ] **Shutter**: after ~3 s of dark frames, vision stops capturing and reports `"shutter"`. Capture starts again only when someone presses "camera on" on the dashboard.
-- [ ] **Dashboard clothing override** (`clothing` in `/control`). This is the fallback if the 14:00 gate fails. *Built and tested by Tuan Anh: `api.py` passes all 11 checks in `api_smoke.sh`. Needs only Minh's OK on the rules in 0.2.3.*
+- [x] **Dashboard clothing override** (`clothing` in `/control`). This is the fallback if the 14:00 gate fails. *Built and tested by Tuan Anh: `api.py` passes all 11 checks in `api_smoke.sh`. Needs only Minh's OK on the rules in 0.2.3.*
 - [ ] **Ports / hostname**: device API on `pw-desk.local:8000`, hub on laptop port `8080`.
-- [ ] **Team chat channel** for the 30-minute rule: ______________
+- **Team chat channel**: skipped at Minh's request (2026-11-14).
 
 ---
 
@@ -207,3 +207,5 @@ In data: the hub marks simulated people with `"sim": true` internally. Device su
 | **21:00** | Integration 2 |
 | **01:30** | Demo run #2 and feature freeze |
 | **09:30 Sunday** | Submitted |
+
+Verified kickoff evidence: [Tuan Anh handoff](tuan-anh-handoff.md). Hostname pw-desk and port 8000 passed in Chrome; observed DHCP address 192.168.0.85 is not reserved. Hub host selection, reverse HTTP and production integration remain pending.

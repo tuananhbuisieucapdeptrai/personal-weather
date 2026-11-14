@@ -15,9 +15,15 @@ How to check each item in the "Confirm at kickoff" list in [interfaces.md](inter
 | 6 | Network + fixed IP | Both | 08:00–08:45 | ~20 min |
 | 7 | Team chat | Both | 08:00 | 2 min |
 
-## Quick start: everything is already in the repo
+## Quick start: kickoff helpers are in the repo
 
-The code in the sections below is already written. At kickoff you **run** it, you don't write it.
+Minh's ordered run sheet, including Windows networking steps, is in
+[minh-kickoff.md](minh-kickoff.md). Sensor/knob and Bridge checks are implemented,
+but must still be compiled and verified on the board. LED drawing and the
+production `vision.py` are not yet implemented. The standalone
+`tools/kickoff/shutter_check.py` can test shutter capture/release after calibration;
+dashboard restart still requires integration. Do not mark physical checks passed
+based only on the presence of these files.
 
 | Item | Run this | Where |
 |---|---|---|
