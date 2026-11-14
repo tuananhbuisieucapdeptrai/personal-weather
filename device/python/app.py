@@ -101,6 +101,12 @@ class App:
         self.bridge, self.vision, self.control, self.clock = bridge, vision, control, clock
         self.inputs, self.accelerated = inputs, accelerated
         self.labels = (["MOCK INPUT"] if inputs == "mock" else ["LIVE"]) + (["ACCELERATED"] if accelerated else [])
+        # Demo speed (labelled ACCELERATED): anti-nagging timers shortened so the loop can be
+        # shown repeatedly. Office values: 15 min between suggestions, 5 min quiet, 4 h block.
+        self.quiet_after_ok_s = 20 if accelerated else QUIET_AFTER_OK_S
+        if accelerated:
+            suggest.MIN_GAP_S = 60
+            suggest.NOT_POSSIBLE_HOLD_S = 120
         self.state_dir = state_dir
         self._profiles_path = os.path.join(state_dir, "profiles.json")
         self.profiles = self._load_profiles()
@@ -246,7 +252,7 @@ class App:
         self.log.append(p.name, rec, "feedback", now, self.labels, self.clothing[0])
         p.reported = (vote, now)
         if vote == comfort.OK:
-            p.quiet_until = now + QUIET_AFTER_OK_S
+            p.quiet_until = now + self.quiet_after_ok_s
         self._event("feedback", profile=p.name, vote=vote, offset=rec["offset_after"])
         self._save()
 
