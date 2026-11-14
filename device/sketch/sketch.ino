@@ -4,8 +4,8 @@
 // Modulino Buzzer. Messages to/from Linux: docs/interfaces.md section 0.2.
 //
 // Status: kickoff version. Sensing, knob, click and Bridge mapping are implemented and
-// checked by device/python/board_check.py. Drawing the faces (M2.1) is still TODO:
-// the face/beep handlers only record what they received.
+// checked by device/python/board_check.py. M2.1 renders faces without blocking
+// the loop; tools/face_test.py exercises the real display and buzzer.
 //
 // Bridge rules (docs/kickoff-guide.md, item 1):
 //   - notify in both directions; handlers registered with provide_safe
@@ -17,6 +17,19 @@
 
 #include <Arduino_RouterBridge.h>
 #include <Modulino.h>
+#include <Arduino_LED_Matrix.h>
+#include "faces.h"
+#include <atomic>
+
+// Read-only diagnostic served independently of the main sketch loop.
+std::atomic<int> startupStage{0};
+int faceCheckStage() { return startupStage.load(); }
+
+Arduino_LED_Matrix matrix;
+uint8_t displayPixels[104];
+uint8_t previousPixels[104];
+unsigned long faceSinceMs = 0;
+unsigned long lastDisplayMs = 0;
 
 // ---- Tuning (set these from board_check.py output) --------------------------
 #define COUNTS_PER_DETENT 1     // raw knob counts per physical click
@@ -52,9 +65,9 @@ int    faceCount = 0;
 int    faceCountSent = 0;
 
 // ---- Linux -> sketch handlers (provide_safe: they will touch the matrix/buzzer) --
-void onFace(String name)       { currentFace = name; faceCount++; }
-void onFaceFeedback(int p)     { currentFace = "feedback"; facePos = p; faceCount++; }
-void onFaceText(String text)   { currentFace = "text"; faceText = text; faceCount++; }
+void onFace(String name)       { currentFace = name; faceSinceMs = millis(); faceCount++; }
+void onFaceFeedback(int p)     { currentFace = "feedback"; facePos = p; faceSinceMs = millis(); faceCount++; }
+void onFaceText(String text)   { currentFace = "text"; faceText = text.substring(0,8); faceSinceMs = millis(); faceCount++; }
 void onBeep(String name) {
   faceCount++;
   if (!buzzerOk) return;
@@ -72,21 +85,39 @@ void playClick() {
 
 void setup() {
   Bridge.begin();                   // blocks until the Linux side is up
+  Bridge.provide("face_check_stage", faceCheckStage);
+  // Discover I2C modules before starting the matrix refresh machinery. On the
+  // tested UNO Q, matrix-first startup missed modules; this order found all three.
+  startupStage.store(3); // entering Modulino bus initialization
   Modulino.begin(Wire1);            // UNO Q Qwiic connector uses the secondary I2C bus
+  startupStage.store(4); // entering Thermo initialization
   thermoOk = thermo.begin();
+  startupStage.store(5); // entering Knob initialization
   knobOk   = knob.begin();
+  startupStage.store(6); // entering Buzzer initialization
   buzzerOk = buzzer.begin();
+  startupStage.store(7); // reading initial knob position
   if (knobOk) lastObservedRaw = lastRaw = knob.get();
 
+  startupStage.store(1); // entering matrix.begin
+  matrix.begin();
+  startupStage.store(2); // entering grayscale configuration
+  matrix.setGrayscaleBits(1);
+  memset(previousPixels, 255, sizeof(previousPixels));
+  faceSinceMs = millis();
+
+  startupStage.store(8); // registering commands
   Bridge.provide_safe("face", onFace);
   Bridge.provide_safe("face_feedback", onFaceFeedback);
   Bridge.provide_safe("face_text", onFaceText);
   Bridge.provide_safe("beep", onBeep);
+  startupStage.store(9); // setup complete
 }
 
 unsigned long lastEnvMs = 0;
 
 void loop() {                       // no delay() anywhere
+  startupStage.store(10); // loop: environment
   unsigned long now = millis();
 
   // --- Environment, 1 Hz, raw values; failed read -> send nothing ---
@@ -104,6 +135,7 @@ void loop() {                       // no delay() anywhere
 #endif
   }
 
+  startupStage.store(11); // loop: knob
   // --- Knob turn: clamp to -1..+1, send only on change, click on every detent ---
   if (knobOk) {
     int raw = knob.get();
@@ -140,6 +172,15 @@ void loop() {                       // no delay() anywhere
   }
 #endif
 
-  // TODO M2.1: draw currentFace / facePos / faceText on the LED matrix
-  // (blink suggest_* icons, scroll text, eye_off -> corner dot after ~3 s).
+  // Render at most 25 Hz; write only changed frames. Timers tolerate millis wrap.
+  if (now - lastDisplayMs >= 40) {
+    lastDisplayMs = now;
+    Faces::render(displayPixels, currentFace.c_str(), facePos, faceText.c_str(), now-faceSinceMs);
+    if (memcmp(displayPixels, previousPixels, sizeof(displayPixels)) != 0) {
+      startupStage.store(12); // entering matrix.draw
+      matrix.draw(displayPixels);
+      startupStage.store(13); // matrix.draw returned
+      memcpy(previousPixels, displayPixels, sizeof(displayPixels));
+    }
+  }
 }

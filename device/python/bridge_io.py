@@ -47,10 +47,16 @@ def start(on_message, extra_handlers=None):
             _log("on_message failed:", repr(e))
 
     def on_env(t, rh):
-        deliver({"t": round(float(t), 1), "rh": round(float(rh), 1)})
+        try:
+            deliver({"t": round(float(t), 1), "rh": round(float(rh), 1)})
+        except (TypeError, ValueError, OverflowError) as e:
+            _log("dropped malformed env:", repr(e))
 
     def on_knob_turn(pos):
-        deliver({"knob": "turn", "pos": int(pos)})
+        try:
+            deliver({"knob": "turn", "pos": int(pos)})
+        except (TypeError, ValueError, OverflowError) as e:
+            _log("dropped malformed knob turn:", repr(e))
 
     def on_knob_press(*_ignored):  # tolerate a dummy arg if zero-arg notify is unsupported
         deliver({"knob": "press"})
