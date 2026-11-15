@@ -7,7 +7,7 @@ One page with everything needed to submit. Fill the two ⏳ links, then go top t
 | What | Link |
 |---|---|
 | **GitHub repo (public)** | https://github.com/tuananhbuisieucapdeptrai/personal-weather |
-| **Demo video (YouTube, unlisted)** | ⏳ paste after upload |
+| **Demo video (YouTube, unlisted)** | https://youtu.be/vJDm6AkoRAI |
 | **Arduino Project Hub page** (tag *Junction Finland 2026*) | ⏳ paste after publishing |
 
 ## Challenges to select on Junction

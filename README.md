@@ -13,7 +13,7 @@ Team: Tuan Anh (software) · Minh (hardware)
 
 **Links:**
 - Repo: https://github.com/tuananhbuisieucapdeptrai/personal-weather
-- Demo video: ⏳
+- Demo video: https://youtu.be/vJDm6AkoRAI
 - Arduino Project Hub: ⏳
 
 > Items marked **⏳ TO FILL** are measurements we haven't made yet. We would rather leave a gap than invent a number.
