@@ -8,7 +8,7 @@ One page with everything needed to submit. Fill the two ⏳ links, then go top t
 |---|---|
 | **GitHub repo (public)** | https://github.com/tuananhbuisieucapdeptrai/personal-weather |
 | **Demo video (YouTube, unlisted)** | https://youtu.be/vJDm6AkoRAI |
-| **Arduino Project Hub page** (tag *Junction Finland 2026*) | ⏳ paste after publishing |
+| **Arduino Project Hub page** (tag *Junction Finland 2026*) | https://projecthub.arduino.cc/projects/a6eccef7-69af-49e3-a20b-89c71078b3b8/preview (pending review) |
 | **Presentation (PDF, 8 slides)** | `docs/personal-weather-slides.pdf` (also `~/Downloads/personal-weather-slides.pdf`) |
 
 ## Challenges to select on Junction

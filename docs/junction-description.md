@@ -9,7 +9,7 @@ Paste-ready text for the Junction platform. Fill every ⏳ before submitting.
 **Links:**
 - Repo: https://github.com/tuananhbuisieucapdeptrai/personal-weather
 - Video (~2 min): https://youtu.be/vJDm6AkoRAI
-- Arduino Project Hub (tag *Junction Finland 2026*): ⏳
+- Arduino Project Hub (tag *Junction Finland 2026*): https://projecthub.arduino.cc/projects/a6eccef7-69af-49e3-a20b-89c71078b3b8/preview
 
 ---
 

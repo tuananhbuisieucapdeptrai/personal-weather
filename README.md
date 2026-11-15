@@ -15,7 +15,7 @@ Team: Tuan Anh (software) · Minh (hardware)
 - Repo: https://github.com/tuananhbuisieucapdeptrai/personal-weather
 - Demo video: https://youtu.be/vJDm6AkoRAI
 - Slides: [docs/personal-weather-slides.pdf](docs/personal-weather-slides.pdf)
-- Arduino Project Hub: ⏳
+- Arduino Project Hub: https://projecthub.arduino.cc/projects/a6eccef7-69af-49e3-a20b-89c71078b3b8/preview (submitted, pending moderator review)
 
 > Items marked **⏳ TO FILL** are measurements we haven't made yet. We would rather leave a gap than invent a number.
 
