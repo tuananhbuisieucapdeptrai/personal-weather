@@ -17,7 +17,7 @@ Team: Tuan Anh (software) · Minh (hardware)
 - Slides: [docs/personal-weather-slides.pdf](docs/personal-weather-slides.pdf)
 - Arduino Project Hub: https://projecthub.arduino.cc/projects/a6eccef7-69af-49e3-a20b-89c71078b3b8/preview (submitted, pending moderator review)
 
-> Items marked **⏳ TO FILL** are measurements we haven't made yet. We would rather leave a gap than invent a number.
+> Where a measurement doesn't exist yet, we say so rather than invent a number.
 
 ---
 
@@ -66,7 +66,7 @@ Team: Tuan Anh (software) · Minh (hardware)
 
 ## Hardware
 
-Arduino UNO Q (2 GB) · Modulino Thermo (mounted outside the case) · Modulino Knob · Modulino Buzzer · onboard LED matrix · USB camera with a **physical shutter** · a laptop as the hub. Enclosure: ⏳ TO FILL (Minh).
+Arduino UNO Q (2 GB) · Modulino Thermo (mounted outside the case) · Modulino Knob · Modulino Buzzer · onboard LED matrix · USB camera with a **physical shutter** · a laptop as the hub. Prototype build: the boards sit on the desk connected by cables, and the webcam stands on its own base facing the seat (chest height).
 
 ## Repository
 
@@ -177,7 +177,7 @@ python3 tools/eval/live_report.py --log <copy of state/feedback_log.jsonl>
 
 | Person | Votes | Baseline accuracy | Personal accuracy | Baseline MAE | Personal MAE | Verdict | Data |
 |---|---|---|---|---|---|---|---|
-| ⏳ | | | | | | | |
+| (no genuine votes yet) | – | – | – | – | – | – | – |
 
 ### Baseline correctness
 

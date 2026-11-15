@@ -1,6 +1,6 @@
 # Final submission: Personal Weather (Junction 2026)
 
-One page with everything needed to submit. Fill the two ⏳ links, then go top to bottom.
+One page with everything needed to submit. All links filled; go top to bottom.
 
 ## Links
 

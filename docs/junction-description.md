@@ -1,6 +1,6 @@
 # Junction submission text (draft)
 
-Paste-ready text for the Junction platform. Fill every ⏳ before submitting.
+Paste-ready text for the Junction platform. All links filled.
 
 **Challenges:**
 - Main: Make Europe Green through Edge AI using Arduino
