@@ -84,7 +84,7 @@ Three labelled layers: **Measured** (what the hub saw), **Proposed** (needs agre
 5. Build the case: LED and knob at the front, camera on top with a sliding card shutter, Thermo outside.
 
 ## Code
-⏳ GitHub repository link (public).
+https://github.com/tuananhbuisieucapdeptrai/personal-weather
 
 ## Team
 Tuan Anh (software) · Minh (hardware)

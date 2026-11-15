@@ -7,7 +7,7 @@ Paste-ready text for the Junction platform. Fill every ⏳ before submitting.
 - Tech: Best use of Arduino UNO Q
 
 **Links:**
-- Repo: ⏳
+- Repo: https://github.com/tuananhbuisieucapdeptrai/personal-weather
 - Video (~2 min): ⏳
 - Arduino Project Hub (tag *Junction Finland 2026*): ⏳
 
