@@ -178,7 +178,7 @@ function now(s) {
         h("div", { class: "meta" }, h("b", {}, `${f1(s.env.t)} °C`), ` · ${Math.round(s.env.rh)} % · comfort ${range(e.band)}`),
         h("div", { class: "meta" }, "Wearing: ", h("b", {}, WEAR[s.clothing.value] || s.clothing.value),
           s.clothing.source === "manual" ? " (set by hand)" : ` (camera${s.vision.conf != null ? `, ${Math.round(s.vision.conf * 100)}%` : ""})`))),
-    action);
+    ...(action ? [action] : []));
 }
 
 function stats(s) {
