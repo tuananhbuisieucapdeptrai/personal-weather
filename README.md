@@ -290,3 +290,11 @@ Energy is shown in three separate layers. No percentage is claimed for this devi
 - Research context: [CBE Personal Comfort Systems](https://cbe.berkeley.edu/research/personal-comfort-system/), and Hoyt, Arens & Zhang (2015).
 - Presence detection: OpenCV cascade and HOG detectors.
 - Built with Arduino App Lab, the UNO Q and Modulino.
+
+## License
+
+**GPL-3.0-or-later** (see [LICENSE](LICENSE)), the same as our Arduino Project Hub page. Anyone can use and improve Personal Weather, but improvements must stay open.
+
+Third-party models keep their own licenses:
+- The zero-shot clothing model is OpenAI CLIP ViT-B/32 (MIT), exported by `tools/eval/export_clip_zeroshot.py`.
+- The presence detector is an OpenCV Haar cascade (Intel license, bundled with OpenCV).
