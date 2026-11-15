@@ -9,10 +9,16 @@ One page with everything needed to submit. Fill the two ⏳ links, then go top t
 | **GitHub repo (public)** | https://github.com/tuananhbuisieucapdeptrai/personal-weather |
 | **Demo video (YouTube, unlisted)** | https://youtu.be/vJDm6AkoRAI |
 | **Arduino Project Hub page** (tag *Junction Finland 2026*) | ⏳ paste after publishing |
+| **Presentation (PDF, 8 slides)** | `docs/personal-weather-slides.pdf` (also `~/Downloads/personal-weather-slides.pdf`) |
 
 ## Challenges to select on Junction
 - **Main:** Make Europe Green through Edge AI using Arduino
 - **Tech:** Best use of Arduino UNO Q
+
+## Junction "Next Steps" fields
+- **Project Demo:** https://youtu.be/vJDm6AkoRAI (the device runs on a desk; the video is the live experience)
+- **Other Link:** the Arduino Project Hub page (or the repo until it's published)
+- **Presentation:** upload `personal-weather-slides.pdf`
 
 ## Text to paste
 - **Name:** Personal Weather
